@@ -1,14 +1,14 @@
-const dns = require('dns');
-dns.setServers(['8.8.8.8', '8.8.4.4']);
-
 const express = require('express');
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const cors = require('cors');
-const dotenv = require('dotenv');
+require('dotenv').config();
 
-dotenv.config();
+// Đọc cấu hình từ file config hoặc biến môi trường
+const JWT_SECRET = process.env.JWT_SECRET || 'tutormate_secure_jwt_secret_key_2026';
+const PORT = process.env.PORT || 5000;
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/tutormate';
 
 const app = express();
 
@@ -16,610 +16,318 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/tutormate', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
-
-const db = mongoose.connection;
-db.on('error', console.error.bind(console, 'MongoDB connection error:'));
-db.once('open', () => console.log('Connected to MongoDB'));
-
-// ===== MODELS =====
-
-// User Schema
-const UserSchema = new mongoose.Schema({
-  email: { type: String, unique: true, required: true },
+// ==========================================
+// MONGOOSE SCHEMAS & MODELS
+// ==========================================
+const userSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  name: String,
   role: { type: String, enum: ['student', 'tutor', 'admin'], default: 'student' },
-  avatar: String,
-  bio: String,
-  phone: String,
-  address: String,
-  subjects: [String],
-  rating: { type: Number, default: 0 },
-  totalReviews: { type: Number, default: 0 },
-  hourlyRate: Number,
-  experience: String,
-  education: String,
-  verified: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
-});
+  avatar: { type: String, default: '' },
+  bio: { type: String, default: '' },
+  subjects: [{ type: String }],
+  hourlyRate: { type: Number, default: 0 },
+  location: { type: String, default: '' },
+  verified: { type: Boolean, default: false }
+}, { timestamps: true });
 
-const User = mongoose.model('User', UserSchema);
+const tutorRequestSchema = new mongoose.Schema({
+  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  tutorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  subject: { type: String, required: true },
+  grade: { type: String, required: true },
+  budget: { type: Number, required: true },
+  description: { type: String },
+  status: { type: String, enum: ['open', 'matched', 'cancelled'], default: 'open' }
+}, { timestamps: true });
 
-// Appointment Schema
-const AppointmentSchema = new mongoose.Schema({
+const appointmentSchema = new mongoose.Schema({
   studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   tutorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  subject: String,
-  dateTime: Date,
-  duration: Number, // in minutes
-  status: { type: String, enum: ['pending', 'confirmed', 'completed', 'cancelled'], default: 'pending' },
-  notes: String,
-  classroomUrl: String,
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
-});
+  subject: { type: String, required: true },
+  startTime: { type: Date, required: true },
+  endTime: { type: Date, required: true },
+  hourlyRate: { type: Number, required: true },
+  totalAmount: { type: Number, required: true },
+  status: { type: String, enum: ['pending', 'confirmed', 'completed', 'cancelled'], default: 'pending' }
+}, { timestamps: true });
 
-const Appointment = mongoose.model('Appointment', AppointmentSchema);
-
-// Message Schema
-const MessageSchema = new mongoose.Schema({
-  senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  receiverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  content: String,
-  read: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now },
-});
-
-const Message = mongoose.model('Message', MessageSchema);
-
-// Review Schema
-const ReviewSchema = new mongoose.Schema({
-  tutorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+const reviewSchema = new mongoose.Schema({
   studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  tutorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  appointmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment', required: true },
   rating: { type: Number, min: 1, max: 5, required: true },
-  comment: String,
-  appointmentId: mongoose.Schema.Types.ObjectId,
-  createdAt: { type: Date, default: Date.now },
-});
+  comment: { type: String }
+}, { timestamps: true });
 
-const Review = mongoose.model('Review', ReviewSchema);
+const transactionSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  appointmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment', required: true },
+  amount: { type: Number, required: true },
+  paymentMethod: { type: String, default: 'wallet' },
+  status: { type: String, enum: ['pending', 'completed', 'failed'], default: 'completed' }
+}, { timestamps: true });
 
-// Transaction Schema
-const TransactionSchema = new mongoose.Schema({
-  tutorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  appointmentId: mongoose.Schema.Types.ObjectId,
-  amount: Number,
-  status: { type: String, enum: ['pending', 'completed', 'refunded'], default: 'pending' },
-  createdAt: { type: Date, default: Date.now },
-});
+const User = mongoose.model('User', userSchema);
+const TutorRequest = mongoose.model('TutorRequest', tutorRequestSchema);
+const Appointment = mongoose.model('Appointment', appointmentSchema);
+const Review = mongoose.model('Review', reviewSchema);
+const Transaction = mongoose.model('Transaction', transactionSchema);
 
-const Transaction = mongoose.model('Transaction', TransactionSchema);
-
-// Tutor Request Schema
-const TutorRequestSchema = new mongoose.Schema({
-  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  subject: String,
-  description: String,
-  budget: Number,
-  preferredTime: String,
-  status: { type: String, enum: ['open', 'matched', 'completed'], default: 'open' },
-  createdAt: { type: Date, default: Date.now },
-});
-
-const TutorRequest = mongoose.model('TutorRequest', TutorRequestSchema);
-
-// ===== AUTHENTICATION =====
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-
-function generateToken(user) {
-  return jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
-}
-
-function verifyToken(token) {
-  try {
-    return jwt.verify(token, JWT_SECRET);
-  } catch (error) {
-    return null;
+// ==========================================
+// AUTHENTICATION MIDDLEWARE
+// ==========================================
+const authenticate = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Không tìm thấy Token xác thực' });
   }
-}
 
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.userId = decoded.id;
+    req.userRole = decoded.role;
+    next();
+  } catch (err) {
+    return res.status(401).json({ message: 'Token không hợp lệ hoặc đã hết hạn' });
+  }
+};
 
-  if (!token) return res.status(401).json({ error: 'No token provided' });
+// ==========================================
+// API ROUTES
+// ==========================================
 
-  const decoded = verifyToken(token);
-  if (!decoded) return res.status(403).json({ error: 'Invalid token' });
-
-  req.userId = decoded.userId;
-  req.userRole = decoded.role;
-  next();
-}
-
-// ===== ROUTES =====
-
-// Register
+// --- AUTH ---
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { email, password, name, role } = req.body;
-
-    // Check if user exists
+    const { name, email, password, role } = req.body;
     const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ error: 'Email already registered' });
+    if (existingUser) return res.status(400).json({ message: 'Email đã tồn tại' });
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
     const user = new User({
+      name,
       email,
       password: hashedPassword,
-      name,
-      role: role || 'student',
+      role: ['student', 'tutor'].includes(role) ? role : 'student' // Không cho đăng ký thẳng làm admin
     });
-
     await user.save();
 
-    const token = generateToken(user);
-    res.status(201).json({
-      user: { id: user._id, email: user.email, name: user.name, role: user.role },
-      token,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi máy chủ', error: err.message });
   }
 });
 
-// Login
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!user) return res.status(400).json({ message: 'Email hoặc mật khẩu không đúng' });
 
-    const passwordMatch = await bcrypt.compare(password, user.password);
-    if (!passwordMatch) return res.status(401).json({ error: 'Invalid credentials' });
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ message: 'Email hoặc mật khẩu không đúng' });
 
-    const token = generateToken(user);
-    res.json({
-      user: { id: user._id, email: user.email, name: user.name, role: user.role },
-      token,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi máy chủ', error: err.message });
   }
 });
 
-// ===== USER ROUTES =====
-
-// Get user profile
-app.get('/api/users/:id', authenticateToken, async (req, res) => {
+// --- USER PROFILE (Sửa Mass Assignment) ---
+app.put('/api/users/:id', authenticate, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password');
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Update user profile
-app.put('/api/users/:id', authenticateToken, async (req, res) => {
-  try {
-    if (req.userId !== req.params.id && req.userRole !== 'admin') {
-      return res.status(403).json({ error: 'Not authorized' });
+    // Phân quyền: Chỉ chính chủ hoặc admin mới được cập nhật
+    if (req.params.id !== req.userId && req.userRole !== 'admin') {
+      return res.status(403).json({ message: 'Không có quyền sửa thông tin tài khoản này' });
     }
 
-    const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true }).select('-password');
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    // KHẮC PHỤC MASS ASSIGNMENT: Chỉ lọc danh sách các trường an toàn
+    const allowedUpdates = {};
+    const { name, avatar, bio, subjects, hourlyRate, location } = req.body;
+
+    if (name !== undefined) allowedUpdates.name = name;
+    if (avatar !== undefined) allowedUpdates.avatar = avatar;
+    if (bio !== undefined) allowedUpdates.bio = bio;
+    if (subjects !== undefined) allowedUpdates.subjects = subjects;
+    if (hourlyRate !== undefined) allowedUpdates.hourlyRate = hourlyRate;
+    if (location !== undefined) allowedUpdates.location = location;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      { $set: allowedUpdates },
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    res.json(updatedUser);
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi cập nhật người dùng', error: err.message });
   }
 });
 
-// Search tutors
-app.get('/api/users/search/tutors', async (req, res) => {
+// --- TUTOR REQUESTS (Sửa logic gia sư nhận lớp) ---
+app.put('/api/tutor-requests/:id', authenticate, async (req, res) => {
   try {
-    const { subject, minRating } = req.query;
-    let query = { role: 'tutor', verified: true };
+    const request = await TutorRequest.findById(req.params.id);
+    if (!request) return res.status(404).json({ message: 'Không tìm thấy yêu cầu' });
 
-    if (subject) {
-      query.subjects = { $in: [subject] };
+    const { status, subject, grade, budget, description } = req.body;
+
+    // TH1: Gia sư nhận lớp (Đổi status sang matched)
+    if (req.userRole === 'tutor' && status === 'matched') {
+      if (request.status !== 'open') {
+        return res.status(400).json({ message: 'Yêu cầu này đã đóng hoặc đã có người nhận' });
+      }
+      request.status = 'matched';
+      request.tutorId = req.userId;
     }
-    if (minRating) {
-      query.rating = { $gte: parseFloat(minRating) };
+    // TH2: Học sinh sở hữu hoặc Admin sửa thông tin yêu cầu
+    else if (request.studentId.toString() === req.userId || req.userRole === 'admin') {
+      if (status) request.status = status;
+      if (subject) request.subject = subject;
+      if (grade) request.grade = grade;
+      if (budget) request.budget = budget;
+      if (description) request.description = description;
+    } else {
+      return res.status(403).json({ message: 'Bạn không có quyền cập nhật yêu cầu này' });
     }
 
-    const tutors = await User.find(query).select('-password');
-    res.json(tutors);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    await request.save();
+    res.json(request);
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi cập nhật', error: err.message });
   }
 });
 
-// ===== APPOINTMENT ROUTES =====
-
-// Create appointment
-app.post('/api/appointments', authenticateToken, async (req, res) => {
+// --- APPOINTMENTS (Sửa IDOR và phân quyền Admin) ---
+app.get('/api/appointments/:id', authenticate, async (req, res) => {
   try {
-    const { tutorId, subject, dateTime, duration, notes } = req.body;
+    const appt = await Appointment.findById(req.params.id)
+      .populate('studentId', 'name email avatar')
+      .populate('tutorId', 'name email avatar');
 
-    const appointment = new Appointment({
+    if (!appt) return res.status(404).json({ message: 'Không tìm thấy lịch học' });
+
+    // KHẮC PHỤC IDOR: Kiểm tra chính chủ hoặc Admin
+    const isStudent = appt.studentId._id.toString() === req.userId;
+    const isTutor = appt.tutorId._id.toString() === req.userId;
+    const isAdmin = req.userRole === 'admin';
+
+    if (!isStudent && !isTutor && !isAdmin) {
+      return res.status(403).json({ message: 'Bạn không có quyền xem chi tiết lịch học này' });
+    }
+
+    res.json(appt);
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi server', error: err.message });
+  }
+});
+
+app.put('/api/appointments/:id', authenticate, async (req, res) => {
+  try {
+    const appt = await Appointment.findById(req.params.id);
+    if (!appt) return res.status(404).json({ message: 'Không tìm thấy lịch học' });
+
+    // KHẮC PHỤC PERMISSION: Bổ sung cho phép Admin cập nhật
+    const isStudent = appt.studentId.toString() === req.userId;
+    const isTutor = appt.tutorId.toString() === req.userId;
+    const isAdmin = req.userRole === 'admin';
+
+    if (!isStudent && !isTutor && !isAdmin) {
+      return res.status(403).json({ message: 'Bạn không có quyền chỉnh sửa lịch học này' });
+    }
+
+    const { status } = req.body;
+    if (status) appt.status = status;
+    await appt.save();
+
+    res.json(appt);
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi cập nhật', error: err.message });
+  }
+});
+
+// --- REVIEWS (Kiểm tra điều kiện đã hoàn tất buổi học) ---
+app.post('/api/reviews', authenticate, async (req, res) => {
+  try {
+    const { tutorId, appointmentId, rating, comment } = req.body;
+
+    // Kiểm tra xem học sinh đã từng hoàn thành (completed) buổi học này với gia sư chưa
+    const validAppointment = await Appointment.findOne({
+      _id: appointmentId,
       studentId: req.userId,
-      tutorId,
-      subject,
-      dateTime,
-      duration,
-      notes,
+      tutorId: tutorId,
+      status: 'completed'
     });
 
-    await appointment.save();
-    res.status(201).json(appointment);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get appointments
-app.get('/api/appointments', authenticateToken, async (req, res) => {
-  try {
-    let query = {};
-    if (req.userRole === 'student') {
-      query.studentId = req.userId;
-    } else if (req.userRole === 'tutor') {
-      query.tutorId = req.userId;
+    if (!validAppointment) {
+      return res.status(400).json({ message: 'Bạn chỉ có thể đánh giá gia sư sau khi hoàn thành buổi học' });
     }
 
-    const appointments = await Appointment.find(query)
-      .populate('studentId', '-password')
-      .populate('tutorId', '-password')
-      .sort({ dateTime: -1 });
-
-    res.json(appointments);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get single appointment
-app.get('/api/appointments/:id', authenticateToken, async (req, res) => {
-  try {
-    const appointment = await Appointment.findById(req.params.id)
-      .populate('studentId', '-password')
-      .populate('tutorId', '-password');
-
-    if (!appointment) return res.status(404).json({ error: 'Appointment not found' });
-    res.json(appointment);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Update appointment
-app.put('/api/appointments/:id', authenticateToken, async (req, res) => {
-  try {
-    const appointment = await Appointment.findById(req.params.id);
-    if (!appointment) return res.status(404).json({ error: 'Appointment not found' });
-
-    // Check authorization
-    if (appointment.studentId.toString() !== req.userId && appointment.tutorId.toString() !== req.userId) {
-      return res.status(403).json({ error: 'Not authorized' });
+    // Kiểm tra xem đã đánh giá buổi học này chưa
+    const existingReview = await Review.findOne({ appointmentId });
+    if (existingReview) {
+      return res.status(400).json({ message: 'Bạn đã gửi đánh giá cho buổi học này rồi' });
     }
-
-    const updated = await Appointment.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(updated);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ===== MESSAGE ROUTES =====
-
-// Send message
-app.post('/api/messages', authenticateToken, async (req, res) => {
-  try {
-    const { receiverId, content } = req.body;
-
-    const message = new Message({
-      senderId: req.userId,
-      receiverId,
-      content,
-    });
-
-    await message.save();
-    await message.populate('senderId', '-password').populate('receiverId', '-password');
-    res.status(201).json(message);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get messages conversation
-app.get('/api/messages/:otherUserId', authenticateToken, async (req, res) => {
-  try {
-    const messages = await Message.find({
-      $or: [
-        { senderId: req.userId, receiverId: req.params.otherUserId },
-        { senderId: req.params.otherUserId, receiverId: req.userId },
-      ],
-    })
-      .populate('senderId', '-password')
-      .populate('receiverId', '-password')
-      .sort({ createdAt: 1 });
-
-    res.json(messages);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Mark message as read
-app.put('/api/messages/:id/read', authenticateToken, async (req, res) => {
-  try {
-    const message = await Message.findByIdAndUpdate(req.params.id, { read: true }, { new: true });
-    res.json(message);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ===== REVIEW ROUTES =====
-
-// Create review
-app.post('/api/reviews', authenticateToken, async (req, res) => {
-  try {
-    const { tutorId, rating, comment, appointmentId } = req.body;
 
     const review = new Review({
-      tutorId,
       studentId: req.userId,
-      rating,
-      comment,
+      tutorId,
       appointmentId,
+      rating,
+      comment
     });
 
     await review.save();
-
-    // Update tutor rating
-    const reviews = await Review.find({ tutorId });
-    const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
-    await User.findByIdAndUpdate(tutorId, { rating: avgRating, totalReviews: reviews.length });
-
     res.status(201).json(review);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi gửi đánh giá', error: err.message });
   }
 });
 
-// Get reviews for tutor
-app.get('/api/reviews/:tutorId', async (req, res) => {
+// --- TRANSACTIONS (Lấy giá trị amount thực tế từ Appointment) ---
+app.post('/api/transactions', authenticate, async (req, res) => {
   try {
-    const reviews = await Review.find({ tutorId: req.params.tutorId })
-      .populate('studentId', '-password')
-      .sort({ createdAt: -1 });
+    const { appointmentId, paymentMethod } = req.body;
 
-    res.json(reviews);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+    const appt = await Appointment.findById(appointmentId);
+    if (!appt) return res.status(404).json({ message: 'Không tìm thấy lịch học' });
 
-// ===== TUTOR REQUEST ROUTES =====
-
-// Create tutor request
-app.post('/api/tutor-requests', authenticateToken, async (req, res) => {
-  try {
-    const { subject, description, budget, preferredTime } = req.body;
-
-    const request = new TutorRequest({
-      studentId: req.userId,
-      subject,
-      description,
-      budget,
-      preferredTime,
-    });
-
-    await request.save();
-    res.status(201).json(request);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get tutor requests (for student)
-app.get('/api/tutor-requests', authenticateToken, async (req, res) => {
-  try {
-    let query = {};
-    if (req.userRole === 'student') {
-      query.studentId = req.userId;
+    if (appt.studentId.toString() !== req.userId && req.userRole !== 'admin') {
+      return res.status(403).json({ message: 'Bạn không có quyền thanh toán cho lịch học này' });
     }
 
-    const requests = await TutorRequest.find(query)
-      .populate('studentId', '-password')
-      .sort({ createdAt: -1 });
-
-    res.json(requests);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Update tutor request status
-app.put('/api/tutor-requests/:id', authenticateToken, async (req, res) => {
-  try {
-    const request = await TutorRequest.findById(req.params.id);
-    if (!request) return res.status(404).json({ error: 'Request not found' });
-
-    if (request.studentId.toString() !== req.userId) {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
-
-    const updated = await TutorRequest.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(updated);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ===== TRANSACTION ROUTES =====
-
-// Create transaction
-app.post('/api/transactions', authenticateToken, async (req, res) => {
-  try {
-    const { tutorId, appointmentId, amount } = req.body;
-
+    // Tính toán số tiền trực tiếp từ cơ sở dữ liệu thay vì tin vào client
     const transaction = new Transaction({
-      tutorId,
-      studentId: req.userId,
+      userId: req.userId,
       appointmentId,
-      amount,
+      amount: appt.totalAmount, 
+      paymentMethod: paymentMethod || 'wallet',
+      status: 'completed'
     });
 
     await transaction.save();
+
+    // Cập nhật trạng thái lịch học sau khi thanh toán thành công
+    appt.status = 'confirmed';
+    await appt.save();
+
     res.status(201).json(transaction);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi giao dịch thanh toán', error: err.message });
   }
 });
 
-// Get transactions
-app.get('/api/transactions', authenticateToken, async (req, res) => {
-  try {
-    let query = {};
-    if (req.userRole === 'tutor') {
-      query.tutorId = req.userId;
-    } else if (req.userRole === 'student') {
-      query.studentId = req.userId;
-    }
-
-    const transactions = await Transaction.find(query)
-      .populate('tutorId', '-password')
-      .populate('studentId', '-password')
-      .sort({ createdAt: -1 });
-
-    res.json(transactions);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ===== ADMIN ROUTES =====
-
-// Get all users (admin only)
-app.get('/api/admin/users', authenticateToken, async (req, res) => {
-  try {
-    if (req.userRole !== 'admin') return res.status(403).json({ error: 'Admin only' });
-
-    const users = await User.find().select('-password');
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Verify tutor (admin only)
-app.put('/api/admin/users/:id/verify', authenticateToken, async (req, res) => {
-  try {
-    if (req.userRole !== 'admin') return res.status(403).json({ error: 'Admin only' });
-
-    const user = await User.findByIdAndUpdate(req.params.id, { verified: true }, { new: true });
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get dashboard stats (admin only)
-app.get('/api/admin/stats', authenticateToken, async (req, res) => {
-  try {
-    if (req.userRole !== 'admin') return res.status(403).json({ error: 'Admin only' });
-
-    const totalUsers = await User.countDocuments();
-    const totalTutors = await User.countDocuments({ role: 'tutor' });
-    const totalStudents = await User.countDocuments({ role: 'student' });
-    const totalAppointments = await Appointment.countDocuments();
-    const totalRevenue = await Transaction.aggregate([
-      { $group: { _id: null, total: { $sum: '$amount' } } },
-    ]);
-
-    res.json({
-      totalUsers,
-      totalTutors,
-      totalStudents,
-      totalAppointments,
-      revenue: totalRevenue[0]?.total || 0,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date() });
-});
-// Tạo demo accounts khi server start
-async function createDemoAccounts() {
-  try {
-    const demoAccounts = [
-      { 
-        email: 'student@example.com', 
-        password: 'password123', 
-        name: 'An Lâm', 
-        role: 'student' 
-      },
-      { 
-        email: 'tutor@example.com', 
-        password: 'password123', 
-        name: 'Ngọc Mai', 
-        role: 'tutor',
-        subjects: ['Toán', 'Vật lý'],
-        rating: 4.9,
-        totalReviews: 126,
-        verified: true
-      },
-      { 
-        email: 'admin@example.com', 
-        password: 'password123', 
-        name: 'Nguyễn Hoàng', 
-        role: 'admin' 
-      }
-    ];
-
-    for (const account of demoAccounts) {
-      const exists = await User.findOne({ email: account.email });
-      if (!exists) {
-        const hashedPassword = await bcrypt.hash(account.password, 10);
-        await User.create({
-          ...account,
-          password: hashedPassword
-        });
-        console.log(`✅ Created demo account: ${account.email}`);
-      }
-    }
-  } catch (error) {
-    console.error('Error creating demo accounts:', error.message);
-  }
-}
-
-// Gọi function này trước khi start server
-db.once('open', async () => {
-  console.log('Connected to MongoDB');
-  await createDemoAccounts();
-});
-
-// Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-// Start server
+// ==========================================
+// KẾT NỐI MONGOOSE & KHỞI CHẠY SERVER
+// ==========================================
+mongoose.connect(MONGODB_URI)
+  .then(() => {
+    console.log('MongoDB connected successfully');
+    app.listen(PORT, () => console.log(`Server TutorMate running on port ${PORT}`));
+  })
+  .catch((err) => console.error('MongoDB connection error:', err));
