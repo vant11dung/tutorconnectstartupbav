@@ -24,9 +24,8 @@ const state = {
   }
 };
 
-// ===== Add this at the TOP of app.js (after const state = {...}) =====
+// ===== HELPER & API FUNCTIONS =====
 
-// Placeholder functions từ frontend-integration.js
 function getToken() {
   return localStorage.getItem('token');
 }
@@ -38,6 +37,11 @@ function saveToken(token) {
 function clearToken() {
   localStorage.removeItem('token');
 }
+
+// Tự động nhận URL backend (Render khi lên web, Localhost khi dev)
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:5000/api'
+  : 'https://tutorconnectstartupbav.onrender.com/api';
 
 async function apiCall(endpoint, options = {}) {
   const token = getToken();
@@ -51,7 +55,7 @@ async function apiCall(endpoint, options = {}) {
   }
 
   try {
-    const response = await fetch(`http://localhost:5000/api${endpoint}`, {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
     });
@@ -148,7 +152,7 @@ async function updateTutorRequest(requestId, status) {
   });
 }
 
-// ===== END OF ADDED FUNCTIONS =====
+// ===== CONFIG ROLES =====
 
 const roles = {
   student: {
@@ -433,115 +437,10 @@ function calendarView() {
   return `<div class="page-heading"><div><p class="eyebrow">CHỦ ĐỘNG SẮP XẾP THỜI GIAN</p><h1>${heading}</h1><p>Đồng bộ lịch, nhận nhắc hẹn và không bỏ lỡ hoạt động quan trọng.</p></div><button class="heading-action" data-open="new-event">＋ ${isAdmin ? 'Thêm công việc' : 'Thêm lịch học'}</button></div><div class="calendar-layout"><article class="card calendar-card"><div class="calendar-toolbar"><div><h2>Tháng 8, 2026</h2></div><div><button class="tiny-button">‹</button><button class="tiny-button">›</button><span class="view-tabs"><button class="active">Tháng</button><button>Tuần</button></span></div></div><div class="calendar-days">${days}</div></article><aside class="calendar-side"><article class="card upcoming-card"><h3>Sắp diễn ra</h3><div class="upcoming-item"><div class="upcoming-date"><b>17</b>THG 8</div><div><h4>${name}</h4><p>${companion}</p></div></div><div class="upcoming-item"><div class="upcoming-date"><b>18</b>THG 8</div><div><h4>${isTutor?'Toán 10 · Gia Hân':isAdmin?'Đối soát giao dịch':'IELTS Speaking'}</h4><p>${isTutor?'15:30 · Tại nhà':'15:30 · Trực tuyến'}</p></div></div><div class="upcoming-item"><div class="upcoming-date"><b>20</b>THG 8</div><div><h4>${isTutor?'Lớp nhóm ôn thi':isAdmin?'Tổng hợp báo cáo':'Ôn tập Vật lý'}</h4><p>19:30 · Trực tuyến</p></div></div></article><article class="card calendar-tip"><b>✦ Mẹo sử dụng lịch</b><p>${isAdmin?'Thiết lập nhắc việc để không bỏ sót các đợt xét duyệt và chi trả.':'Bạn có thể thay đổi lịch với gia sư tối đa 12 giờ trước buổi học.'}</p></article></aside></div>`;
 }
 
+// HÀM MESSAGESVIEW ĐÃ FIX CHUẨN CLASS CSS CỦA PROJECT
 function messagesView() {
-  const currentUserId = localStorage.getItem('userId') || '';
-
-  return `
-    <div class="container margin-top">
-      <h2>Tin nhắn & Thảo luận</h2>
-      <div class="chat-container">
-        <!-- Sidebar danh sách hội thoại -->
-        <div class="chat-sidebar">
-          <div class="chat-item active">
-            <img src="https://via.placeholder.com/40" alt="Avatar" class="avatar-sm">
-            <div class="chat-info">
-              <h4>Nguyễn Văn A</h4>
-              <p class="text-muted">Dạ em đã chuẩn bị xong bài học...</p>
-            </div>
-          </div>
-          <div class="chat-item">
-            <img src="https://via.placeholder.com/40" alt="Avatar" class="avatar-sm">
-            <div class="chat-info">
-              <h4>Trần Thị B</h4>
-              <p class="text-muted">Hẹn gặp thầy vào 7h tối nay ạ.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Khung chat chính -->
-        <div class="chat-main">
-          <div class="chat-header">
-            <h3>Nguyễn Văn A</h3>
-            <span class="badge status-online">Đang hoạt động</span>
-          </div>
-
-          <div class="chat-thread" id="chatThread">
-            <div class="message incoming">
-              <div class="message-content">
-                Chào bạn, mình có thể nhận lớp Tiếng Anh lớp 12 này nhé!
-              </div>
-              <span class="message-time">10:15 AM</span>
-            </div>
-            <div class="message outgoing">
-              <div class="message-content">
-                Vâng ạ, học phí 250k/giờ đúng không thầy?
-              </div>
-              <span class="message-time">10:17 AM</span>
-            </div>
-            <div class="message incoming">
-              <div class="message-content">
-                Đúng rồi em, mình bắt đầu vào buổi tối thứ 3 tuần này nhé.
-              </div>
-              <span class="message-time">10:20 AM</span>
-            </div>
-          </div>
-
-          <!-- Khung nhập tin nhắn -->
-          <form class="chat-input-area" id="chatForm" onsubmit="handleSendMessage(event)">
-            <input 
-              type="text" 
-              id="messageInput" 
-              class="form-control" 
-              placeholder="Nhập tin nhắn..." 
-              required
-            >
-            <button type="submit" class="btn btn-primary">Gửi</button>
-          </form>
-        </div>
-      </div>
-    </div>
-  `;
+  return `<div class="page-heading"><div><p class="eyebrow">KẾT NỐI NHANH CHÓNG</p><h1>Tin nhắn</h1><p>Trao đổi riêng tư, chia sẻ tài liệu và giữ nhịp học hiệu quả.</p></div><button class="heading-action" data-open="new-message">＋ Tin nhắn mới</button></div><section class="card messages-layout"><aside class="inbox-column"><div class="inbox-heading"><h2>Hộp thư</h2><button data-open="new-message">＋</button></div><button class="conversation active" data-conversation="Cô Linh Nguyễn">${tutorAvatar('LN')}<div class="conversation-body"><div class="conversation-name"><b>Cô Linh Nguyễn</b><span>09:16</span></div><p>Dạ cô đã gửi bài tập tuần này...</p></div><span class="unread">2</span></button><button class="conversation" data-conversation="Thầy Minh Phạm">${tutorAvatar('MP','avatar-minh')}<div class="conversation-body"><div class="conversation-name"><b>Thầy Minh Phạm</b><span>Hôm qua</span></div><p>Em nhớ chuẩn bị speaking nhé!</p></div></button><button class="conversation" data-conversation="Nhóm ôn thi THPT">${tutorAvatar('OT','avatar-huy')}<div class="conversation-body"><div class="conversation-name"><b>Nhóm ôn thi THPT</b><span>T6</span></div><p>Tuấn: Mọi người làm đến câu 12...</p></div><span class="unread">1</span></button><button class="conversation" data-conversation="TutorConnect Support">${tutorAvatar('TM','avatar-admin')}<div class="conversation-body"><div class="conversation-name"><b>TutorConnect Support</b><span>12/08</span></div><p>Yêu cầu hỗ trợ của bạn đã...</p></div></button></aside><section class="chat-column"><header class="chat-header"><div class="chat-person">${tutorAvatar('LN')}<div><h3 id="chatName">Cô Linh Nguyễn</h3><p class="online-status">● Đang hoạt động</p></div></div><div class="chat-actions"><button title="Gọi video">◉</button><button title="Thông tin">ⓘ</button></div></header><div class="chat-thread" id="chatThread"><div class="message">${tutorAvatar('LN')}<div><div class="bubble">Chào An, cô đã xem bài kiểm tra của em. Phần tích phân từng phần em làm rất tốt rồi đó! 👏</div><span class="message-time">09:12</span></div></div><div class="message mine"><span class="avatar avatar-user">${getInitials(state.currentUser?.name || 'An Lâm')}</span><div><div class="bubble">Dạ em cảm ơn cô. Phần đổi biến số em vẫn chưa tự tin lắm ạ.</div><span class="message-time">09:14 · Đã xem</span></div></div><div class="message">${tutorAvatar('LN')}<div><div class="bubble">Không sao, chiều nay mình sẽ dành thêm thời gian luyện phần đó nhé. Cô gửi em một file tóm tắt công thức.</div><span class="message-time">09:16</span></div></div></div><form class="chat-composer" id="messageForm"><button type="button">＋</button><input id="messageInput" placeholder="Viết tin nhắn..." autocomplete="off" /><button class="send-message" aria-label="Gửi tin nhắn">↑</button></form></section><aside class="chat-details">${tutorAvatar('LN')}<h3>Cô Linh Nguyễn</h3><p>Gia sư Toán · Đã xác thực</p><div class="detail-divider"></div><div class="detail-section"><h4>Tài liệu đã chia sẻ</h4><div class="shared-file"><span class="file-type">PDF</span><span>Tóm tắt tích phân.pdf</span></div><div class="shared-file"><span class="file-type">PDF</span><span>Bài tập tuần 3.pdf</span></div></div><div class="detail-divider"></div><button class="secondary-button" data-open="booking">Đặt lịch học</button></aside></section>`;
 }
-
-// Xử lý gửi tin nhắn trực tiếp trên UI
-function handleSendMessage(event) {
-  event.preventDefault();
-  const input = document.getElementById('messageInput');
-  const thread = document.getElementById('chatThread');
-  
-  if (!input.value.trim()) return;
-
-  const msgDiv = document.createElement('div');
-  msgDiv.className = 'message outgoing';
-  msgDiv.innerHTML = `
-    <div class="message-content">${escapeHTML(input.value)}</div>
-    <span class="message-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-  `;
-  
-  thread.appendChild(msgDiv);
-  input.value = '';
-  thread.scrollTop = thread.scrollHeight;
-}
-
-// Helper tránh lỗi XSS trên Frontend
-function escapeHTML(str) {
-  return str.replace(/[&<>'"]/g, 
-    tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-  );
-}
-
-// Khởi chạy App khi trang tải hoàn tất
-document.addEventListener('DOMContentLoaded', () => {
-  // Thay thế hardcode localhost bằng dynamic host nếu cần
-  window.API_BASE_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:5000/api' 
-    : '/api';
-
-  // Render view ban đầu
-  if (typeof renderApp === 'function') {
-    renderApp();
-  }
-})
 
 function classroomView() {
   const isTutor = state.role === 'tutor';
@@ -686,7 +585,7 @@ async function handleSendMessage(e) {
 
   try {
     const receiverId = state.data.tutors[0]?._id || '507f1f77bcf86cd799439011';
-    await window.sendMessage(receiverId, text);
+    await sendMessage(receiverId, text);
   } catch (err) {
     console.warn('API send message note:', err.message);
   }
