@@ -4,7 +4,7 @@
  * Thay thế các mock function trong app.js bằng các API calls thực sự
  */
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://tutorconnectstartupbav.onrender.com/api';
 
 // ===== HELPER FUNCTIONS =====
 
