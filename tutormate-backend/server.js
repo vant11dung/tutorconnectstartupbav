@@ -5,329 +5,2257 @@ const bcrypt = require('bcryptjs');
 const cors = require('cors');
 require('dotenv').config();
 
-// Đọc cấu hình từ file config hoặc biến môi trường
-const JWT_SECRET = process.env.JWT_SECRET || 'tutormate_secure_jwt_secret_key_2026';
-const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/tutormate';
+const JWT_SECRET =
+  process.env.JWT_SECRET || 'tutormate_secure_jwt_secret_key_2026';
+
+const PORT = Number(process.env.PORT || 5000);
+
+const MONGODB_URI =
+  process.env.MONGODB_URI || 'mongodb://localhost:27017/tutormate';
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// ============================================================
+// MIDDLEWARE
+// ============================================================
 
-// ==========================================
-// MONGOOSE SCHEMAS & MODELS
-// ==========================================
-const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  role: { type: String, enum: ['student', 'tutor', 'admin'], default: 'student' },
-  avatar: { type: String, default: '' },
-  bio: { type: String, default: '' },
-  subjects: [{ type: String }],
-  hourlyRate: { type: Number, default: 0 },
-  location: { type: String, default: '' },
-  verified: { type: Boolean, default: false }
-}, { timestamps: true });
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || true,
+    credentials: true,
+  })
+);
 
-const tutorRequestSchema = new mongoose.Schema({
-  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  tutorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-  subject: { type: String, required: true },
-  grade: { type: String, required: true },
-  budget: { type: Number, required: true },
-  description: { type: String },
-  status: { type: String, enum: ['open', 'matched', 'cancelled'], default: 'open' }
-}, { timestamps: true });
+app.use(express.json({ limit: '1mb' }));
 
-const appointmentSchema = new mongoose.Schema({
-  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  tutorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  subject: { type: String, required: true },
-  startTime: { type: Date, required: true },
-  endTime: { type: Date, required: true },
-  hourlyRate: { type: Number, required: true },
-  totalAmount: { type: Number, required: true },
-  status: { type: String, enum: ['pending', 'confirmed', 'completed', 'cancelled'], default: 'pending' }
-}, { timestamps: true });
+// ============================================================
+// SCHEMAS
+// ============================================================
 
-const reviewSchema = new mongoose.Schema({
-  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  tutorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  appointmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment', required: true },
-  rating: { type: Number, min: 1, max: 5, required: true },
-  comment: { type: String }
-}, { timestamps: true });
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-const transactionSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  appointmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment', required: true },
-  amount: { type: Number, required: true },
-  paymentMethod: { type: String, default: 'wallet' },
-  status: { type: String, enum: ['pending', 'completed', 'failed'], default: 'completed' }
-}, { timestamps: true });
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+
+    password: {
+      type: String,
+      required: true,
+      select: false,
+    },
+
+    role: {
+      type: String,
+      enum: ['student', 'tutor', 'admin'],
+      default: 'student',
+    },
+
+    avatar: {
+      type: String,
+      default: '',
+    },
+
+    bio: {
+      type: String,
+      default: '',
+    },
+
+    subjects: [
+      {
+        type: String,
+      },
+    ],
+
+    hourlyRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    location: {
+      type: String,
+      default: '',
+    },
+
+    verified: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const tutorRequestSchema = new mongoose.Schema(
+  {
+    studentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+
+    tutorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+
+    subject: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    // Frontend hiện tại không gửi grade riêng.
+    grade: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+
+    budget: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
+    description: {
+      type: String,
+      default: '',
+    },
+
+    preferredTime: {
+      type: String,
+      default: '',
+    },
+
+    status: {
+      type: String,
+      enum: ['open', 'matched', 'cancelled'],
+      default: 'open',
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const appointmentSchema = new mongoose.Schema(
+  {
+    studentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+
+    tutorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+
+    subject: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    startTime: {
+      type: Date,
+      required: true,
+    },
+
+    endTime: {
+      type: Date,
+      required: true,
+    },
+
+    notes: {
+      type: String,
+      default: '',
+    },
+
+    hourlyRate: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
+    totalAmount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
+    status: {
+      type: String,
+      enum: ['pending', 'confirmed', 'completed', 'cancelled'],
+      default: 'pending',
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const messageSchema = new mongoose.Schema(
+  {
+    senderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+
+    receiverId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+
+    content: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 5000,
+    },
+
+    read: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const reviewSchema = new mongoose.Schema(
+  {
+    studentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+
+    tutorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+
+    appointmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Appointment',
+      required: true,
+      unique: true,
+    },
+
+    rating: {
+      type: Number,
+      min: 1,
+      max: 5,
+      required: true,
+    },
+
+    comment: {
+      type: String,
+      default: '',
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const transactionSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+
+    studentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+
+    tutorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+
+    appointmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Appointment',
+      required: true,
+    },
+
+    amount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
+    paymentMethod: {
+      type: String,
+      default: 'wallet',
+    },
+
+    status: {
+      type: String,
+      enum: ['pending', 'completed', 'failed'],
+      default: 'completed',
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+// ============================================================
+// MODELS
+// ============================================================
 
 const User = mongoose.model('User', userSchema);
 const TutorRequest = mongoose.model('TutorRequest', tutorRequestSchema);
 const Appointment = mongoose.model('Appointment', appointmentSchema);
+const Message = mongoose.model('Message', messageSchema);
 const Review = mongoose.model('Review', reviewSchema);
 const Transaction = mongoose.model('Transaction', transactionSchema);
 
-// ==========================================
-// AUTHENTICATION MIDDLEWARE
-// ==========================================
-const authenticate = (req, res, next) => {
+// ============================================================
+// HELPERS
+// ============================================================
+
+function publicUser(user) {
+  return {
+    id: user._id,
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    avatar: user.avatar,
+    bio: user.bio,
+    subjects: user.subjects,
+    hourlyRate: user.hourlyRate,
+    location: user.location,
+    verified: user.verified,
+  };
+}
+
+function errorResponse(res, status, message, err = null) {
+  return res.status(status).json({
+    message,
+    error: message,
+    ...(err ? { details: err.message } : {}),
+  });
+}
+
+function requireObjectId(value, fieldName) {
+  if (!mongoose.isValidObjectId(value)) {
+    const error = new Error(`${fieldName} không hợp lệ`);
+    error.status = 400;
+    throw error;
+  }
+}
+
+// ============================================================
+// AUTH MIDDLEWARE
+// ============================================================
+
+function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Không tìm thấy Token xác thực' });
+    return errorResponse(
+      res,
+      401,
+      'Không tìm thấy Token xác thực'
+    );
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.slice(7);
+
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.userId = decoded.id;
+
+    req.userId = String(decoded.id);
     req.userRole = decoded.role;
+
     next();
-  } catch (err) {
-    return res.status(401).json({ message: 'Token không hợp lệ hoặc đã hết hạn' });
+  } catch (error) {
+    return errorResponse(
+      res,
+      401,
+      'Token không hợp lệ hoặc đã hết hạn'
+    );
   }
-};
+}
 
-// ==========================================
-// API ROUTES
-// ==========================================
+function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!roles.includes(req.userRole)) {
+      return errorResponse(
+        res,
+        403,
+        'Bạn không có quyền thực hiện thao tác này'
+      );
+    }
 
-// --- AUTH ---
+    next();
+  };
+}
+
+// ============================================================
+// HEALTH CHECK
+// ============================================================
+
+app.get('/api/health', (_req, res) => {
+  res.json({
+    ok: true,
+    service: 'tutormate-api',
+    time: new Date().toISOString(),
+  });
+});
+
+// ============================================================
+// AUTH
+// ============================================================
+
+// REGISTER
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
-    const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ message: 'Email đã tồn tại' });
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({
-      name,
-      email,
-      password: hashedPassword,
-      role: ['student', 'tutor'].includes(role) ? role : 'student' // Không cho đăng ký thẳng làm admin
+    if (!name || !email || !password) {
+      return errorResponse(
+        res,
+        400,
+        'Vui lòng nhập name, email và password'
+      );
+    }
+
+    if (String(password).length < 6) {
+      return errorResponse(
+        res,
+        400,
+        'Mật khẩu phải có ít nhất 6 ký tự'
+      );
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    const existingUser = await User.exists({
+      email: normalizedEmail,
     });
-    await user.save();
 
-    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
-    res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+    if (existingUser) {
+      return errorResponse(
+        res,
+        400,
+        'Email đã tồn tại'
+      );
+    }
+
+    // Không cho đăng ký trực tiếp admin.
+    const safeRole =
+      role === 'tutor' ? 'tutor' : 'student';
+
+    const hashedPassword = await bcrypt.hash(
+      String(password),
+      10
+    );
+
+    const user = await User.create({
+      name: String(name).trim(),
+      email: normalizedEmail,
+      password: hashedPassword,
+      role: safeRole,
+    });
+
+    const token = jwt.sign(
+      {
+        id: user._id,
+        role: user.role,
+      },
+      JWT_SECRET,
+      {
+        expiresIn: '7d',
+      }
+    );
+
+    res.status(201).json({
+      token,
+      user: publicUser(user),
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Lỗi máy chủ', error: err.message });
+    console.error('REGISTER ERROR:', err);
+
+    errorResponse(
+      res,
+      500,
+      'Lỗi đăng ký tài khoản',
+      err
+    );
   }
 });
 
+// LOGIN
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: 'Email hoặc mật khẩu không đúng' });
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: 'Email hoặc mật khẩu không đúng' });
+    if (!email || !password) {
+      return errorResponse(
+        res,
+        400,
+        'Vui lòng nhập email và mật khẩu'
+      );
+    }
 
-    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+    const normalizedEmail =
+      String(email).trim().toLowerCase();
+
+    const user = await User.findOne({
+      email: normalizedEmail,
+    }).select('+password');
+
+    if (
+      !user ||
+      !(await bcrypt.compare(
+        String(password),
+        user.password
+      ))
+    ) {
+      return errorResponse(
+        res,
+        400,
+        'Email hoặc mật khẩu không đúng'
+      );
+    }
+
+    const token = jwt.sign(
+      {
+        id: user._id,
+        role: user.role,
+      },
+      JWT_SECRET,
+      {
+        expiresIn: '7d',
+      }
+    );
+
+    res.json({
+      token,
+      user: publicUser(user),
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Lỗi máy chủ', error: err.message });
+    console.error('LOGIN ERROR:', err);
+
+    errorResponse(
+      res,
+      500,
+      'Lỗi đăng nhập',
+      err
+    );
   }
 });
 
-// --- USER PROFILE (Sửa Mass Assignment) ---
-app.put('/api/users/:id', authenticate, async (req, res) => {
+// ============================================================
+// USERS
+// ============================================================
+
+// GET PROFILE
+app.get('/api/users/:id', authenticate, async (req, res) => {
   try {
-    // Phân quyền: Chỉ chính chủ hoặc admin mới được cập nhật
-    if (req.params.id !== req.userId && req.userRole !== 'admin') {
-      return res.status(403).json({ message: 'Không có quyền sửa thông tin tài khoản này' });
+    requireObjectId(req.params.id, 'User ID');
+
+    const isOwner =
+      req.params.id === req.userId;
+
+    const isAdmin =
+      req.userRole === 'admin';
+
+    if (!isOwner && !isAdmin) {
+      return errorResponse(
+        res,
+        403,
+        'Không có quyền xem tài khoản này'
+      );
     }
 
-    // KHẮC PHỤC MASS ASSIGNMENT: Chỉ lọc danh sách các trường an toàn
-    const allowedUpdates = {};
-    const { name, avatar, bio, subjects, hourlyRate, location } = req.body;
-
-    if (name !== undefined) allowedUpdates.name = name;
-    if (avatar !== undefined) allowedUpdates.avatar = avatar;
-    if (bio !== undefined) allowedUpdates.bio = bio;
-    if (subjects !== undefined) allowedUpdates.subjects = subjects;
-    if (hourlyRate !== undefined) allowedUpdates.hourlyRate = hourlyRate;
-    if (location !== undefined) allowedUpdates.location = location;
-
-    const updatedUser = await User.findByIdAndUpdate(
-      req.params.id,
-      { $set: allowedUpdates },
-      { new: true, runValidators: true }
+    const user = await User.findById(
+      req.params.id
     ).select('-password');
 
-    res.json(updatedUser);
+    if (!user) {
+      return errorResponse(
+        res,
+        404,
+        'Không tìm thấy người dùng'
+      );
+    }
+
+    res.json(publicUser(user));
   } catch (err) {
-    res.status(500).json({ message: 'Lỗi cập nhật người dùng', error: err.message });
+    errorResponse(
+      res,
+      err.status || 500,
+      err.status
+        ? err.message
+        : 'Lỗi lấy thông tin người dùng',
+      err.status ? null : err
+    );
   }
 });
 
-// --- TUTOR REQUESTS (Sửa logic gia sư nhận lớp) ---
-app.put('/api/tutor-requests/:id', authenticate, async (req, res) => {
+// UPDATE PROFILE
+app.put('/api/users/:id', authenticate, async (req, res) => {
   try {
-    const request = await TutorRequest.findById(req.params.id);
-    if (!request) return res.status(404).json({ message: 'Không tìm thấy yêu cầu' });
+    requireObjectId(req.params.id, 'User ID');
 
-    const { status, subject, grade, budget, description } = req.body;
+    const isOwner =
+      req.params.id === req.userId;
 
-    // TH1: Gia sư nhận lớp (Đổi status sang matched)
-    if (req.userRole === 'tutor' && status === 'matched') {
-      if (request.status !== 'open') {
-        return res.status(400).json({ message: 'Yêu cầu này đã đóng hoặc đã có người nhận' });
+    const isAdmin =
+      req.userRole === 'admin';
+
+    if (!isOwner && !isAdmin) {
+      return errorResponse(
+        res,
+        403,
+        'Không có quyền sửa thông tin tài khoản này'
+      );
+    }
+
+    const allowedFields = [
+      'name',
+      'avatar',
+      'bio',
+      'subjects',
+      'hourlyRate',
+      'location',
+    ];
+
+    const updates = {};
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updates[field] = req.body[field];
       }
-      request.status = 'matched';
-      request.tutorId = req.userId;
-    }
-    // TH2: Học sinh sở hữu hoặc Admin sửa thông tin yêu cầu
-    else if (request.studentId.toString() === req.userId || req.userRole === 'admin') {
-      if (status) request.status = status;
-      if (subject) request.subject = subject;
-      if (grade) request.grade = grade;
-      if (budget) request.budget = budget;
-      if (description) request.description = description;
-    } else {
-      return res.status(403).json({ message: 'Bạn không có quyền cập nhật yêu cầu này' });
     }
 
-    await request.save();
-    res.json(request);
+    if (updates.name !== undefined) {
+      updates.name = String(updates.name).trim();
+    }
+
+    if (updates.hourlyRate !== undefined) {
+      updates.hourlyRate = Number(
+        updates.hourlyRate
+      );
+    }
+
+    const user =
+      await User.findByIdAndUpdate(
+        req.params.id,
+        {
+          $set: updates,
+        },
+        {
+          new: true,
+          runValidators: true,
+        }
+      ).select('-password');
+
+    if (!user) {
+      return errorResponse(
+        res,
+        404,
+        'Không tìm thấy người dùng'
+      );
+    }
+
+    res.json(publicUser(user));
   } catch (err) {
-    res.status(500).json({ message: 'Lỗi cập nhật', error: err.message });
+    errorResponse(
+      res,
+      500,
+      'Lỗi cập nhật người dùng',
+      err
+    );
   }
 });
 
-// --- APPOINTMENTS (Sửa IDOR và phân quyền Admin) ---
-app.get('/api/appointments/:id', authenticate, async (req, res) => {
-  try {
-    const appt = await Appointment.findById(req.params.id)
-      .populate('studentId', 'name email avatar')
-      .populate('tutorId', 'name email avatar');
+// SEARCH TUTORS
+app.get(
+  '/api/users/search/tutors',
+  authenticate,
+  async (req, res) => {
+    try {
+      const {
+        subject = '',
+        minRating = 0,
+      } = req.query;
 
-    if (!appt) return res.status(404).json({ message: 'Không tìm thấy lịch học' });
+      const query = {
+        role: 'tutor',
+      };
 
-    // KHẮC PHỤC IDOR: Kiểm tra chính chủ hoặc Admin
-    const isStudent = appt.studentId._id.toString() === req.userId;
-    const isTutor = appt.tutorId._id.toString() === req.userId;
-    const isAdmin = req.userRole === 'admin';
+      if (String(subject).trim()) {
+        query.subjects = {
+          $regex: String(subject).trim(),
+          $options: 'i',
+        };
+      }
 
-    if (!isStudent && !isTutor && !isAdmin) {
-      return res.status(403).json({ message: 'Bạn không có quyền xem chi tiết lịch học này' });
+      const tutors = await User.find(query)
+        .select('-password')
+        .lean();
+
+      const tutorIds = tutors.map(
+        (tutor) => tutor._id
+      );
+
+      let ratings = [];
+
+      if (tutorIds.length > 0) {
+        ratings = await Review.aggregate([
+          {
+            $match: {
+              tutorId: {
+                $in: tutorIds,
+              },
+            },
+          },
+          {
+            $group: {
+              _id: '$tutorId',
+              rating: {
+                $avg: '$rating',
+              },
+              totalReviews: {
+                $sum: 1,
+              },
+            },
+          },
+        ]);
+      }
+
+      const ratingMap = new Map(
+        ratings.map((row) => [
+          String(row._id),
+          row,
+        ])
+      );
+
+      const minRatingNumber =
+        Number(minRating || 0);
+
+      const result = tutors
+        .map((tutor) => {
+          const ratingData =
+            ratingMap.get(
+              String(tutor._id)
+            );
+
+          return {
+            ...tutor,
+
+            rating: ratingData
+              ? Number(
+                  ratingData.rating.toFixed(2)
+                )
+              : 0,
+
+            totalReviews:
+              ratingData?.totalReviews || 0,
+          };
+        })
+        .filter(
+          (tutor) =>
+            Number(tutor.rating || 0) >=
+            minRatingNumber
+        );
+
+      res.json(result);
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi tìm kiếm gia sư',
+        err
+      );
     }
-
-    res.json(appt);
-  } catch (err) {
-    res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
+);
+
+// ============================================================
+// APPOINTMENTS
+// ============================================================
+
+// CREATE APPOINTMENT
+app.post(
+  '/api/appointments',
+  authenticate,
+  async (req, res) => {
+    try {
+      if (
+        req.userRole !== 'student' &&
+        req.userRole !== 'admin'
+      ) {
+        return errorResponse(
+          res,
+          403,
+          'Chỉ học sinh mới có thể đặt lịch'
+        );
+      }
+
+      const {
+        tutorId,
+        subject,
+        dateTime,
+        duration = 60,
+        notes = '',
+      } = req.body;
+
+      requireObjectId(
+        tutorId,
+        'Tutor ID'
+      );
+
+      if (!subject || !dateTime) {
+        return errorResponse(
+          res,
+          400,
+          'Thiếu subject hoặc dateTime'
+        );
+      }
+
+      const minutes = Number(duration);
+
+      if (
+        !Number.isFinite(minutes) ||
+        minutes <= 0 ||
+        minutes > 480
+      ) {
+        return errorResponse(
+          res,
+          400,
+          'Duration không hợp lệ'
+        );
+      }
+
+      const tutor =
+        await User.findOne({
+          _id: tutorId,
+          role: 'tutor',
+        });
+
+      if (!tutor) {
+        return errorResponse(
+          res,
+          404,
+          'Không tìm thấy gia sư'
+        );
+      }
+
+      if (
+        req.userRole !== 'admin' &&
+        String(tutor._id) === req.userId
+      ) {
+        return errorResponse(
+          res,
+          400,
+          'Không thể tự đặt lịch cho chính mình'
+        );
+      }
+
+      const startTime =
+        new Date(dateTime);
+
+      if (Number.isNaN(startTime.getTime())) {
+        return errorResponse(
+          res,
+          400,
+          'dateTime không hợp lệ'
+        );
+      }
+
+      const endTime = new Date(
+        startTime.getTime() +
+          minutes * 60 * 1000
+      );
+
+      const hourlyRate =
+        Number(tutor.hourlyRate || 0);
+
+      // Tính tiền ở backend.
+      const totalAmount = Math.round(
+        (hourlyRate * minutes) / 60
+      );
+
+      const appointment =
+        await Appointment.create({
+          studentId: req.userId,
+          tutorId,
+          subject: String(subject).trim(),
+          startTime,
+          endTime,
+          notes: String(notes || ''),
+          hourlyRate,
+          totalAmount,
+          status: 'pending',
+        });
+
+      const populated =
+        await Appointment.findById(
+          appointment._id
+        )
+          .populate(
+            'studentId',
+            'name email avatar'
+          )
+          .populate(
+            'tutorId',
+            'name email avatar subjects hourlyRate verified'
+          );
+
+      res.status(201).json(populated);
+    } catch (err) {
+      if (err.status) {
+        return errorResponse(
+          res,
+          err.status,
+          err.message
+        );
+      }
+
+      errorResponse(
+        res,
+        500,
+        'Lỗi tạo lịch học',
+        err
+      );
+    }
+  }
+);
+
+// GET MY APPOINTMENTS
+app.get(
+  '/api/appointments',
+  authenticate,
+  async (req, res) => {
+    try {
+      const filter =
+        req.userRole === 'admin'
+          ? {}
+          : {
+              $or: [
+                {
+                  studentId: req.userId,
+                },
+                {
+                  tutorId: req.userId,
+                },
+              ],
+            };
+
+      const appointments =
+        await Appointment.find(filter)
+          .sort({
+            startTime: 1,
+          })
+          .populate(
+            'studentId',
+            'name email avatar'
+          )
+          .populate(
+            'tutorId',
+            'name email avatar subjects hourlyRate verified'
+          );
+
+      res.json(appointments);
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi lấy danh sách lịch học',
+        err
+      );
+    }
+  }
+);
+
+// GET APPOINTMENT DETAIL
+app.get(
+  '/api/appointments/:id',
+  authenticate,
+  async (req, res) => {
+    try {
+      requireObjectId(
+        req.params.id,
+        'Appointment ID'
+      );
+
+      const appointment =
+        await Appointment.findById(
+          req.params.id
+        )
+          .populate(
+            'studentId',
+            'name email avatar'
+          )
+          .populate(
+            'tutorId',
+            'name email avatar subjects hourlyRate verified'
+          );
+
+      if (!appointment) {
+        return errorResponse(
+          res,
+          404,
+          'Không tìm thấy lịch học'
+        );
+      }
+
+      const isOwner =
+        String(
+          appointment.studentId._id
+        ) === req.userId ||
+        String(
+          appointment.tutorId._id
+        ) === req.userId;
+
+      const isAdmin =
+        req.userRole === 'admin';
+
+      if (!isOwner && !isAdmin) {
+        return errorResponse(
+          res,
+          403,
+          'Bạn không có quyền xem lịch học này'
+        );
+      }
+
+      res.json(appointment);
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi lấy chi tiết lịch học',
+        err
+      );
+    }
+  }
+);
+
+// UPDATE APPOINTMENT
+app.put(
+  '/api/appointments/:id',
+  authenticate,
+  async (req, res) => {
+    try {
+      requireObjectId(
+        req.params.id,
+        'Appointment ID'
+      );
+
+      const appointment =
+        await Appointment.findById(
+          req.params.id
+        );
+
+      if (!appointment) {
+        return errorResponse(
+          res,
+          404,
+          'Không tìm thấy lịch học'
+        );
+      }
+
+      const allowed =
+        req.userRole === 'admin' ||
+        String(appointment.studentId) ===
+          req.userId ||
+        String(appointment.tutorId) ===
+          req.userId;
+
+      if (!allowed) {
+        return errorResponse(
+          res,
+          403,
+          'Bạn không có quyền chỉnh sửa lịch học này'
+        );
+      }
+
+      if (req.body.status !== undefined) {
+        const validStatuses = [
+          'pending',
+          'confirmed',
+          'completed',
+          'cancelled',
+        ];
+
+        if (
+          !validStatuses.includes(
+            req.body.status
+          )
+        ) {
+          return errorResponse(
+            res,
+            400,
+            'Trạng thái lịch học không hợp lệ'
+          );
+        }
+
+        appointment.status =
+          req.body.status;
+      }
+
+      if (req.body.notes !== undefined) {
+        appointment.notes =
+          String(req.body.notes);
+      }
+
+      if (
+        req.body.startTime !== undefined
+      ) {
+        const start =
+          new Date(
+            req.body.startTime
+          );
+
+        if (Number.isNaN(start.getTime())) {
+          return errorResponse(
+            res,
+            400,
+            'startTime không hợp lệ'
+          );
+        }
+
+        appointment.startTime = start;
+
+        if (
+          req.body.endTime !== undefined
+        ) {
+          const end =
+            new Date(
+              req.body.endTime
+            );
+
+          if (
+            Number.isNaN(end.getTime()) ||
+            end <= start
+          ) {
+            return errorResponse(
+              res,
+              400,
+              'endTime không hợp lệ'
+            );
+          }
+
+          appointment.endTime = end;
+        }
+      }
+
+      await appointment.save();
+
+      const populated =
+        await Appointment.findById(
+          appointment._id
+        )
+          .populate(
+            'studentId',
+            'name email avatar'
+          )
+          .populate(
+            'tutorId',
+            'name email avatar subjects hourlyRate verified'
+          );
+
+      res.json(populated);
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi cập nhật lịch học',
+        err
+      );
+    }
+  }
+);
+
+// ============================================================
+// TUTOR REQUESTS
+// ============================================================
+
+// CREATE REQUEST
+app.post(
+  '/api/tutor-requests',
+  authenticate,
+  async (req, res) => {
+    try {
+      if (req.userRole !== 'student') {
+        return errorResponse(
+          res,
+          403,
+          'Chỉ học sinh mới có thể đăng nhu cầu'
+        );
+      }
+
+      const {
+        subject,
+        description = '',
+        budget,
+        preferredTime = '',
+        grade = '',
+      } = req.body;
+
+      const numericBudget =
+        Number(budget);
+
+      if (
+        !subject ||
+        !Number.isFinite(
+          numericBudget
+        ) ||
+        numericBudget <= 0
+      ) {
+        return errorResponse(
+          res,
+          400,
+          'Thiếu subject hoặc budget hợp lệ'
+        );
+      }
+
+      const request =
+        await TutorRequest.create({
+          studentId: req.userId,
+          subject: String(
+            subject
+          ).trim(),
+          grade: String(
+            grade || ''
+          ),
+          budget: numericBudget,
+          description: String(
+            description || ''
+          ),
+          preferredTime: String(
+            preferredTime || ''
+          ),
+          status: 'open',
+        });
+
+      const populated =
+        await TutorRequest.findById(
+          request._id
+        )
+          .populate(
+            'studentId',
+            'name email avatar'
+          )
+          .populate(
+            'tutorId',
+            'name email avatar'
+          );
+
+      res.status(201).json(
+        populated
+      );
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi tạo yêu cầu tìm gia sư',
+        err
+      );
+    }
+  }
+);
+
+// GET REQUESTS
+app.get(
+  '/api/tutor-requests',
+  authenticate,
+  async (req, res) => {
+    try {
+      let filter;
+
+      if (req.userRole === 'admin') {
+        filter = {};
+      } else if (req.userRole === 'tutor') {
+        filter = {
+          $or: [
+            {
+              status: 'open',
+            },
+            {
+              tutorId: req.userId,
+            },
+          ],
+        };
+      } else {
+        filter = {
+          studentId: req.userId,
+        };
+      }
+
+      const requests =
+        await TutorRequest.find(filter)
+          .sort({
+            createdAt: -1,
+          })
+          .populate(
+            'studentId',
+            'name email avatar'
+          )
+          .populate(
+            'tutorId',
+            'name email avatar'
+          );
+
+      res.json(requests);
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi lấy yêu cầu gia sư',
+        err
+      );
+    }
+  }
+);
+
+// UPDATE REQUEST
+app.put(
+  '/api/tutor-requests/:id',
+  authenticate,
+  async (req, res) => {
+    try {
+      requireObjectId(
+        req.params.id,
+        'Tutor Request ID'
+      );
+
+      const request =
+        await TutorRequest.findById(
+          req.params.id
+        );
+
+      if (!request) {
+        return errorResponse(
+          res,
+          404,
+          'Không tìm thấy yêu cầu'
+        );
+      }
+
+      const {
+        status,
+        subject,
+        grade,
+        budget,
+        description,
+        preferredTime,
+      } = req.body;
+
+      // Tutor nhận lớp
+      if (
+        req.userRole === 'tutor' &&
+        status === 'matched'
+      ) {
+        if (request.status !== 'open') {
+          return errorResponse(
+            res,
+            400,
+            'Yêu cầu này đã đóng hoặc đã có người nhận'
+          );
+        }
+
+        request.status = 'matched';
+        request.tutorId =
+          req.userId;
+      }
+
+      // Student chính chủ hoặc Admin
+      else if (
+        req.userRole === 'admin' ||
+        String(request.studentId) ===
+          req.userId
+      ) {
+        if (
+          status !== undefined &&
+          ![
+            'open',
+            'matched',
+            'cancelled',
+          ].includes(status)
+        ) {
+          return errorResponse(
+            res,
+            400,
+            'Trạng thái không hợp lệ'
+          );
+        }
+
+        if (status !== undefined) {
+          request.status = status;
+        }
+
+        if (subject !== undefined) {
+          request.subject =
+            String(subject).trim();
+        }
+
+        if (grade !== undefined) {
+          request.grade =
+            String(grade);
+        }
+
+        if (budget !== undefined) {
+          const numericBudget =
+            Number(budget);
+
+          if (
+            !Number.isFinite(
+              numericBudget
+            ) ||
+            numericBudget <= 0
+          ) {
+            return errorResponse(
+              res,
+              400,
+              'Budget không hợp lệ'
+            );
+          }
+
+          request.budget =
+            numericBudget;
+        }
+
+        if (
+          description !== undefined
+        ) {
+          request.description =
+            String(description);
+        }
+
+        if (
+          preferredTime !== undefined
+        ) {
+          request.preferredTime =
+            String(preferredTime);
+        }
+      }
+
+      else {
+        return errorResponse(
+          res,
+          403,
+          'Bạn không có quyền cập nhật yêu cầu này'
+        );
+      }
+
+      await request.save();
+
+      const populated =
+        await TutorRequest.findById(
+          request._id
+        )
+          .populate(
+            'studentId',
+            'name email avatar'
+          )
+          .populate(
+            'tutorId',
+            'name email avatar'
+          );
+
+      res.json(populated);
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi cập nhật yêu cầu gia sư',
+        err
+      );
+    }
+  }
+);
+
+// ============================================================
+// MESSAGES
+// ============================================================
+
+// SEND MESSAGE
+app.post(
+  '/api/messages',
+  authenticate,
+  async (req, res) => {
+    try {
+      const {
+        receiverId,
+        content,
+      } = req.body;
+
+      requireObjectId(
+        receiverId,
+        'Receiver ID'
+      );
+
+      if (
+        !content ||
+        !String(content).trim()
+      ) {
+        return errorResponse(
+          res,
+          400,
+          'Nội dung tin nhắn không được để trống'
+        );
+      }
+
+      if (
+        String(receiverId) ===
+        req.userId
+      ) {
+        return errorResponse(
+          res,
+          400,
+          'Không thể gửi tin nhắn cho chính mình'
+        );
+      }
+
+      const receiver =
+        await User.findById(
+          receiverId
+        ).select('_id');
+
+      if (!receiver) {
+        return errorResponse(
+          res,
+          404,
+          'Không tìm thấy người nhận'
+        );
+      }
+
+      const message =
+        await Message.create({
+          senderId: req.userId,
+          receiverId,
+          content:
+            String(content).trim(),
+          read: false,
+        });
+
+      const populated =
+        await Message.findById(
+          message._id
+        )
+          .populate(
+            'senderId',
+            'name email avatar'
+          )
+          .populate(
+            'receiverId',
+            'name email avatar'
+          );
+
+      res.status(201).json(
+        populated
+      );
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi gửi tin nhắn',
+        err
+      );
+    }
+  }
+);
+
+// GET CONVERSATION
+app.get(
+  '/api/messages/:userId',
+  authenticate,
+  async (req, res) => {
+    try {
+      requireObjectId(
+        req.params.userId,
+        'User ID'
+      );
+
+      const otherUserId =
+        String(req.params.userId);
+
+      const messages =
+        await Message.find({
+          $or: [
+            {
+              senderId: req.userId,
+              receiverId: otherUserId,
+            },
+            {
+              senderId: otherUserId,
+              receiverId: req.userId,
+            },
+          ],
+        })
+          .sort({
+            createdAt: 1,
+          })
+          .populate(
+            'senderId',
+            'name email avatar'
+          )
+          .populate(
+            'receiverId',
+            'name email avatar'
+          );
+
+      // Đánh dấu tin nhận được là đã đọc.
+      await Message.updateMany(
+        {
+          senderId: otherUserId,
+          receiverId: req.userId,
+          read: false,
+        },
+        {
+          $set: {
+            read: true,
+          },
+        }
+      );
+
+      res.json(messages);
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi lấy cuộc trò chuyện',
+        err
+      );
+    }
+  }
+);
+
+// MARK MESSAGE READ
+app.put(
+  '/api/messages/:id/read',
+  authenticate,
+  async (req, res) => {
+    try {
+      requireObjectId(
+        req.params.id,
+        'Message ID'
+      );
+
+      const message =
+        await Message.findOneAndUpdate(
+          {
+            _id: req.params.id,
+            receiverId: req.userId,
+          },
+          {
+            $set: {
+              read: true,
+            },
+          },
+          {
+            new: true,
+          }
+        )
+          .populate(
+            'senderId',
+            'name email avatar'
+          )
+          .populate(
+            'receiverId',
+            'name email avatar'
+          );
+
+      if (!message) {
+        return errorResponse(
+          res,
+          404,
+          'Không tìm thấy tin nhắn hoặc bạn không có quyền'
+        );
+      }
+
+      res.json(message);
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi đánh dấu tin nhắn đã đọc',
+        err
+      );
+    }
+  }
+);
+
+// ============================================================
+// REVIEWS
+// ============================================================
+
+// CREATE REVIEW
+app.post(
+  '/api/reviews',
+  authenticate,
+  async (req, res) => {
+    try {
+      if (req.userRole !== 'student') {
+        return errorResponse(
+          res,
+          403,
+          'Chỉ học sinh mới có thể đánh giá'
+        );
+      }
+
+      const {
+        tutorId,
+        appointmentId,
+        rating,
+        comment = '',
+      } = req.body;
+
+      requireObjectId(
+        tutorId,
+        'Tutor ID'
+      );
+
+      requireObjectId(
+        appointmentId,
+        'Appointment ID'
+      );
+
+      const numericRating =
+        Number(rating);
+
+      if (
+        !Number.isFinite(
+          numericRating
+        ) ||
+        numericRating < 1 ||
+        numericRating > 5
+      ) {
+        return errorResponse(
+          res,
+          400,
+          'Rating phải từ 1 đến 5'
+        );
+      }
+
+      const appointment =
+        await Appointment.findOne({
+          _id: appointmentId,
+          studentId: req.userId,
+          tutorId,
+          status: 'completed',
+        });
+
+      if (!appointment) {
+        return errorResponse(
+          res,
+          400,
+          'Bạn chỉ có thể đánh giá gia sư sau khi hoàn thành buổi học'
+        );
+      }
+
+      const existingReview =
+        await Review.exists({
+          appointmentId,
+        });
+
+      if (existingReview) {
+        return errorResponse(
+          res,
+          400,
+          'Bạn đã gửi đánh giá cho buổi học này rồi'
+        );
+      }
+
+      const review =
+        await Review.create({
+          studentId: req.userId,
+          tutorId,
+          appointmentId,
+          rating: numericRating,
+          comment: String(comment),
+        });
+
+      const populated =
+        await Review.findById(
+          review._id
+        )
+          .populate(
+            'studentId',
+            'name avatar'
+          )
+          .populate(
+            'tutorId',
+            'name avatar'
+          );
+
+      res.status(201).json(
+        populated
+      );
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi gửi đánh giá',
+        err
+      );
+    }
+  }
+);
+
+// GET REVIEWS FOR TUTOR
+app.get(
+  '/api/reviews/:tutorId',
+  async (req, res) => {
+    try {
+      requireObjectId(
+        req.params.tutorId,
+        'Tutor ID'
+      );
+
+      const reviews =
+        await Review.find({
+          tutorId:
+            req.params.tutorId,
+        })
+          .sort({
+            createdAt: -1,
+          })
+          .populate(
+            'studentId',
+            'name avatar'
+          )
+          .populate(
+            'tutorId',
+            'name avatar'
+          );
+
+      res.json(reviews);
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi lấy đánh giá',
+        err
+      );
+    }
+  }
+);
+
+// ============================================================
+// TRANSACTIONS
+// ============================================================
+
+// CREATE TRANSACTION
+app.post(
+  '/api/transactions',
+  authenticate,
+  async (req, res) => {
+    try {
+      const {
+        appointmentId,
+        paymentMethod = 'wallet',
+      } = req.body;
+
+      requireObjectId(
+        appointmentId,
+        'Appointment ID'
+      );
+
+      const appointment =
+        await Appointment.findById(
+          appointmentId
+        );
+
+      if (!appointment) {
+        return errorResponse(
+          res,
+          404,
+          'Không tìm thấy lịch học'
+        );
+      }
+
+      const canPay =
+        req.userRole === 'admin' ||
+        String(
+          appointment.studentId
+        ) === req.userId;
+
+      if (!canPay) {
+        return errorResponse(
+          res,
+          403,
+          'Bạn không có quyền thanh toán cho lịch học này'
+        );
+      }
+
+      if (
+        appointment.status ===
+        'cancelled'
+      ) {
+        return errorResponse(
+          res,
+          400,
+          'Không thể thanh toán lịch đã hủy'
+        );
+      }
+
+      const alreadyPaid =
+        await Transaction.exists({
+          appointmentId,
+          status: 'completed',
+        });
+
+      if (alreadyPaid) {
+        return errorResponse(
+          res,
+          400,
+          'Lịch học này đã được thanh toán'
+        );
+      }
+
+      const transaction =
+        await Transaction.create({
+          userId: req.userId,
+          studentId:
+            appointment.studentId,
+          tutorId:
+            appointment.tutorId,
+          appointmentId,
+          amount:
+            appointment.totalAmount,
+          paymentMethod:
+            String(
+              paymentMethod || 'wallet'
+            ),
+          status: 'completed',
+        });
+
+      appointment.status =
+        'confirmed';
+
+      await appointment.save();
+
+      const populated =
+        await Transaction.findById(
+          transaction._id
+        )
+          .populate(
+            'studentId',
+            'name email avatar'
+          )
+          .populate(
+            'tutorId',
+            'name email avatar'
+          )
+          .populate(
+            'appointmentId'
+          );
+
+      res.status(201).json(
+        populated
+      );
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi giao dịch thanh toán',
+        err
+      );
+    }
+  }
+);
+
+// GET TRANSACTIONS
+app.get(
+  '/api/transactions',
+  authenticate,
+  async (req, res) => {
+    try {
+      let filter;
+
+      if (req.userRole === 'admin') {
+        filter = {};
+      } else {
+        filter = {
+          $or: [
+            {
+              userId: req.userId,
+            },
+            {
+              studentId: req.userId,
+            },
+            {
+              tutorId: req.userId,
+            },
+          ],
+        };
+      }
+
+      const transactions =
+        await Transaction.find(filter)
+          .sort({
+            createdAt: -1,
+          })
+          .populate(
+            'studentId',
+            'name email avatar'
+          )
+          .populate(
+            'tutorId',
+            'name email avatar'
+          )
+          .populate(
+            'appointmentId'
+          );
+
+      res.json(transactions);
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi lấy lịch sử giao dịch',
+        err
+      );
+    }
+  }
+);
+
+// ============================================================
+// ADMIN
+// ============================================================
+
+// GET ALL USERS
+app.get(
+  '/api/admin/users',
+  authenticate,
+  requireRole('admin'),
+  async (_req, res) => {
+    try {
+      const users =
+        await User.find()
+          .select('-password')
+          .sort({
+            createdAt: -1,
+          });
+
+      res.json(
+        users.map(publicUser)
+      );
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi lấy danh sách người dùng',
+        err
+      );
+    }
+  }
+);
+
+// VERIFY TUTOR
+app.put(
+  '/api/admin/users/:id/verify',
+  authenticate,
+  requireRole('admin'),
+  async (req, res) => {
+    try {
+      requireObjectId(
+        req.params.id,
+        'User ID'
+      );
+
+      const user =
+        await User.findOneAndUpdate(
+          {
+            _id: req.params.id,
+            role: 'tutor',
+          },
+          {
+            $set: {
+              verified: true,
+            },
+          },
+          {
+            new: true,
+          }
+        ).select('-password');
+
+      if (!user) {
+        return errorResponse(
+          res,
+          404,
+          'Không tìm thấy gia sư'
+        );
+      }
+
+      res.json(
+        publicUser(user)
+      );
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi xác minh gia sư',
+        err
+      );
+    }
+  }
+);
+
+// ADMIN STATS
+app.get(
+  '/api/admin/stats',
+  authenticate,
+  requireRole('admin'),
+  async (_req, res) => {
+    try {
+      const [
+        totalUsers,
+        totalTutors,
+        totalStudents,
+        totalAppointments,
+        revenueAgg,
+      ] = await Promise.all([
+        User.countDocuments(),
+
+        User.countDocuments({
+          role: 'tutor',
+        }),
+
+        User.countDocuments({
+          role: 'student',
+        }),
+
+        Appointment.countDocuments(),
+
+        Transaction.aggregate([
+          {
+            $match: {
+              status: 'completed',
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              revenue: {
+                $sum: '$amount',
+              },
+            },
+          },
+        ]),
+      ]);
+
+      res.json({
+        totalUsers,
+        totalTutors,
+        totalStudents,
+        totalAppointments,
+        revenue:
+          revenueAgg[0]?.revenue || 0,
+      });
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi lấy thống kê admin',
+        err
+      );
+    }
+  }
+);
+
+// ============================================================
+// 404
+// ============================================================
+
+app.use((req, res) => {
+  errorResponse(
+    res,
+    404,
+    `Không tìm thấy API: ${req.method} ${req.originalUrl}`
+  );
 });
 
-app.put('/api/appointments/:id', authenticate, async (req, res) => {
-  try {
-    const appt = await Appointment.findById(req.params.id);
-    if (!appt) return res.status(404).json({ message: 'Không tìm thấy lịch học' });
+// ============================================================
+// GLOBAL ERROR
+// ============================================================
 
-    // KHẮC PHỤC PERMISSION: Bổ sung cho phép Admin cập nhật
-    const isStudent = appt.studentId.toString() === req.userId;
-    const isTutor = appt.tutorId.toString() === req.userId;
-    const isAdmin = req.userRole === 'admin';
+app.use(
+  (
+    err,
+    _req,
+    res,
+    _next
+  ) => {
+    console.error(
+      'Unhandled server error:',
+      err
+    );
 
-    if (!isStudent && !isTutor && !isAdmin) {
-      return res.status(403).json({ message: 'Bạn không có quyền chỉnh sửa lịch học này' });
-    }
-
-    const { status } = req.body;
-    if (status) appt.status = status;
-    await appt.save();
-
-    res.json(appt);
-  } catch (err) {
-    res.status(500).json({ message: 'Lỗi cập nhật', error: err.message });
+    errorResponse(
+      res,
+      500,
+      'Lỗi server không xác định',
+      err
+    );
   }
-});
+);
 
-// --- REVIEWS (Kiểm tra điều kiện đã hoàn tất buổi học) ---
-app.post('/api/reviews', authenticate, async (req, res) => {
-  try {
-    const { tutorId, appointmentId, rating, comment } = req.body;
+// ============================================================
+// DATABASE + SERVER
+// ============================================================
 
-    // Kiểm tra xem học sinh đã từng hoàn thành (completed) buổi học này với gia sư chưa
-    const validAppointment = await Appointment.findOne({
-      _id: appointmentId,
-      studentId: req.userId,
-      tutorId: tutorId,
-      status: 'completed'
-    });
-
-    if (!validAppointment) {
-      return res.status(400).json({ message: 'Bạn chỉ có thể đánh giá gia sư sau khi hoàn thành buổi học' });
-    }
-
-    // Kiểm tra xem đã đánh giá buổi học này chưa
-    const existingReview = await Review.findOne({ appointmentId });
-    if (existingReview) {
-      return res.status(400).json({ message: 'Bạn đã gửi đánh giá cho buổi học này rồi' });
-    }
-
-    const review = new Review({
-      studentId: req.userId,
-      tutorId,
-      appointmentId,
-      rating,
-      comment
-    });
-
-    await review.save();
-    res.status(201).json(review);
-  } catch (err) {
-    res.status(500).json({ message: 'Lỗi gửi đánh giá', error: err.message });
-  }
-});
-
-// --- TRANSACTIONS (Lấy giá trị amount thực tế từ Appointment) ---
-app.post('/api/transactions', authenticate, async (req, res) => {
-  try {
-    const { appointmentId, paymentMethod } = req.body;
-
-    const appt = await Appointment.findById(appointmentId);
-    if (!appt) return res.status(404).json({ message: 'Không tìm thấy lịch học' });
-
-    if (appt.studentId.toString() !== req.userId && req.userRole !== 'admin') {
-      return res.status(403).json({ message: 'Bạn không có quyền thanh toán cho lịch học này' });
-    }
-
-    // Tính toán số tiền trực tiếp từ cơ sở dữ liệu thay vì tin vào client
-    const transaction = new Transaction({
-      userId: req.userId,
-      appointmentId,
-      amount: appt.totalAmount, 
-      paymentMethod: paymentMethod || 'wallet',
-      status: 'completed'
-    });
-
-    await transaction.save();
-
-    // Cập nhật trạng thái lịch học sau khi thanh toán thành công
-    appt.status = 'confirmed';
-    await appt.save();
-
-    res.status(201).json(transaction);
-  } catch (err) {
-    res.status(500).json({ message: 'Lỗi giao dịch thanh toán', error: err.message });
-  }
-});
-
-// ==========================================
-// KẾT NỐI MONGOOSE & KHỞI CHẠY SERVER
-// ==========================================
-mongoose.connect(MONGODB_URI)
+mongoose
+  .connect(MONGODB_URI)
   .then(() => {
-    console.log('MongoDB connected successfully');
-    app.listen(PORT, () => console.log(`Server TutorMate running on port ${PORT}`));
+    console.log(
+      'MongoDB connected successfully'
+    );
+
+    app.listen(
+      PORT,
+      () => {
+        console.log(
+          `TutorMate API running on port ${PORT}`
+        );
+
+        console.log(
+          `Health: http://localhost:${PORT}/api/health`
+        );
+      }
+    );
   })
-  .catch((err) => console.error('MongoDB connection error:', err));
+  .catch((err) => {
+    console.error(
+      'MongoDB connection error:',
+      err
+    );
+
+    process.exit(1);
+  });
+
+module.exports = app;
