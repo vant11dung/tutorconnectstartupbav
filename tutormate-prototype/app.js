@@ -4220,14 +4220,283 @@ function closeModal() {
 
 
 /* =========================================================
-   AUTH UI
+   AUTH UI - LOGIN / REGISTER / LOGOUT
+========================================================= */
+
+function renderLoginForm() {
+  const authForm =
+    document.querySelector('.auth-form');
+
+  if (!authForm) {
+    return;
+  }
+
+  authForm.innerHTML = `
+    <span class="auth-welcome">
+      CHÀO MỪNG TRỞ LẠI
+    </span>
+
+    <h2>
+      Đăng nhập vào TutorConnect
+    </h2>
+
+    <p>
+      Tiếp tục hành trình dạy và học của bạn.
+    </p>
+
+    <form id="loginForm">
+
+      <label>
+        Email
+        <input
+          id="loginEmail"
+          type="email"
+          placeholder="you@example.com"
+          autocomplete="username"
+          required
+        />
+      </label>
+
+      <label>
+        Mật khẩu
+        <input
+          id="loginPassword"
+          type="password"
+          placeholder="••••••••"
+          autocomplete="current-password"
+          required
+        />
+      </label>
+
+      <button
+        class="auth-submit"
+        type="submit"
+      >
+        Đăng nhập
+        <span>→</span>
+      </button>
+
+    </form>
+
+    <div class="auth-footer">
+      Chưa có tài khoản?
+      <a
+        href="#"
+        id="showRegister"
+      >
+        Đăng ký miễn phí
+      </a>
+    </div>
+  `;
+
+  $('#loginForm')?.addEventListener(
+    'submit',
+    async (event) => {
+      event.preventDefault();
+
+      const email =
+        $('#loginEmail')
+          ?.value
+          .trim();
+
+      const password =
+        $('#loginPassword')
+          ?.value;
+
+      await startLogin(
+        email,
+        password
+      );
+    }
+  );
+
+  $('#showRegister')?.addEventListener(
+    'click',
+    (event) => {
+      event.preventDefault();
+
+      renderRegisterForm();
+    }
+  );
+}
+
+
+/* =========================================================
+   REGISTER FORM
+========================================================= */
+
+function renderRegisterForm() {
+  const authForm =
+    document.querySelector('.auth-form');
+
+  if (!authForm) {
+    return;
+  }
+
+  authForm.innerHTML = `
+    <span class="auth-welcome">
+      THAM GIA TUTORMATE
+    </span>
+
+    <h2>
+      Tạo tài khoản
+    </h2>
+
+    <p>
+      Đăng ký miễn phí để bắt đầu hành trình của bạn.
+    </p>
+
+    <form id="registerForm">
+
+      <label>
+        Họ và tên
+        <input
+          id="registerName"
+          type="text"
+          placeholder="Nguyễn Văn A"
+          autocomplete="name"
+          required
+        />
+      </label>
+
+      <label>
+        Email
+        <input
+          id="registerEmail"
+          type="email"
+          placeholder="you@example.com"
+          autocomplete="email"
+          required
+        />
+      </label>
+
+      <label>
+        Mật khẩu
+        <input
+          id="registerPassword"
+          type="password"
+          placeholder="Tối thiểu 6 ký tự"
+          autocomplete="new-password"
+          minlength="6"
+          required
+        />
+      </label>
+
+      <label>
+        Bạn là
+        <select
+          id="registerRole"
+          required
+        >
+          <option value="student">
+            Học sinh
+          </option>
+
+          <option value="tutor">
+            Gia sư
+          </option>
+        </select>
+      </label>
+
+      <button
+        class="auth-submit"
+        type="submit"
+      >
+        Tạo tài khoản
+        <span>→</span>
+      </button>
+
+    </form>
+
+    <div class="auth-footer">
+      Đã có tài khoản?
+      <a
+        href="#"
+        id="showLogin"
+      >
+        Đăng nhập
+      </a>
+    </div>
+  `;
+
+  $('#registerForm')?.addEventListener(
+    'submit',
+    async (event) => {
+      event.preventDefault();
+
+      const name =
+        $('#registerName')
+          ?.value
+          .trim();
+
+      const email =
+        $('#registerEmail')
+          ?.value
+          .trim();
+
+      const password =
+        $('#registerPassword')
+          ?.value;
+
+      const role =
+        $('#registerRole')
+          ?.value;
+
+      if (
+        !name ||
+        !email ||
+        !password ||
+        !role
+      ) {
+        showToast(
+          'Vui lòng nhập đầy đủ thông tin.'
+        );
+
+        return;
+      }
+
+      if (
+        password.length < 6
+      ) {
+        showToast(
+          'Mật khẩu phải có ít nhất 6 ký tự.'
+        );
+
+        return;
+      }
+
+      await startRegister(
+        name,
+        email,
+        password,
+        role
+      );
+    }
+  );
+
+  $('#showLogin')?.addEventListener(
+    'click',
+    (event) => {
+      event.preventDefault();
+
+      renderLoginForm();
+    }
+  );
+}
+
+
+/* =========================================================
+   LOGIN
 ========================================================= */
 
 async function startLogin(
   email,
   password
 ) {
-  if (!email || !password) {
+  if (
+    !email ||
+    !password
+  ) {
     showToast(
       'Vui lòng nhập email và mật khẩu.'
     );
@@ -4236,14 +4505,15 @@ async function startLogin(
   }
 
   try {
-
     const user =
       await login(
         email,
         password
       );
 
-    if (!user?.role) {
+    if (
+      !user?.role
+    ) {
       throw new Error(
         'Backend không trả về role.'
       );
@@ -4255,12 +4525,9 @@ async function startLogin(
     state.role =
       user.role;
 
-    showAuthScreen(
-      false
-    );
+    showAuthScreen(false);
 
     applyIdentity();
-
     renderNav();
 
     await fetchViewData();
@@ -4291,29 +4558,197 @@ async function startLogin(
   }
 }
 
-$('#loginForm')
-  ?.addEventListener(
-    'submit',
-    async (event) => {
 
-      event.preventDefault();
+/* =========================================================
+   REGISTER
+========================================================= */
 
-      const email =
-        $('#loginForm input[type="text"]')
-          ?.value.trim() ||
-        '';
+async function startRegister(
+  name,
+  email,
+  password,
+  role
+) {
+  try {
 
-      const password =
-        $('#loginForm input[type="password"]')
-          ?.value ||
-        '';
-
-      await startLogin(
+    const user =
+      await register(
         email,
-        password
+        password,
+        name,
+        role
+      );
+
+    if (
+      !user?.role
+    ) {
+      throw new Error(
+        'Backend không trả về role.'
       );
     }
+
+    state.currentUser =
+      user;
+
+    state.role =
+      user.role;
+
+    showAuthScreen(false);
+
+    applyIdentity();
+    renderNav();
+
+    await fetchViewData();
+
+    renderAllViews();
+
+    navigateWithoutFetch(
+      'dashboard'
+    );
+
+    showToast(
+      'Tạo tài khoản thành công!'
+    );
+
+  } catch (error) {
+
+    clearToken();
+
+    state.currentUser =
+      null;
+
+    showToast(
+      `Đăng ký thất bại: ${error.message}`
+    );
+  }
+}
+
+
+/* =========================================================
+   LOGOUT
+========================================================= */
+
+function logout() {
+
+  clearToken();
+
+  state.currentUser =
+    null;
+
+  state.role =
+    'student';
+
+  state.currentView =
+    'dashboard';
+
+  state.selectedTutor =
+    null;
+
+  state.selectedTutorId =
+    null;
+
+  state.selectedConversationId =
+    null;
+
+  state.currentChatPartner =
+    null;
+
+  state.data = {
+    appointments: [],
+    tutors: [],
+    tutorRequests: [],
+    conversations: [],
+    messages: [],
+    transactions: [],
+    adminUsers: [],
+    adminStats: null
+  };
+
+  renderLoginForm();
+
+  showAuthScreen(
+    true
   );
+
+  renderNav();
+
+  renderAllViews();
+
+  showToast(
+    'Bạn đã đăng xuất.'
+  );
+}
+
+
+/* =========================================================
+   LOGOUT BUTTON
+========================================================= */
+
+function addLogoutButton() {
+
+  const sidebarBottom =
+    document.querySelector(
+      '.sidebar-bottom'
+    );
+
+  if (
+    !sidebarBottom
+  ) {
+    return;
+  }
+
+  if (
+    document.querySelector(
+      '#logoutBtn'
+    )
+  ) {
+    return;
+  }
+
+  const logoutButton =
+    document.createElement(
+      'button'
+    );
+
+  logoutButton.className =
+    'side-link';
+
+  logoutButton.id =
+    'logoutBtn';
+
+  logoutButton.innerHTML =
+    `
+      <span>↪</span>
+      Đăng xuất
+    `;
+
+  /*
+   * Đặt nút đăng xuất trước
+   * Trung tâm hỗ trợ / Cài đặt.
+   */
+  sidebarBottom.insertBefore(
+    logoutButton,
+    sidebarBottom.firstElementChild
+  );
+
+  logoutButton.addEventListener(
+    'click',
+    () => {
+
+      const confirmed =
+        window.confirm(
+          'Bạn có chắc muốn đăng xuất không?'
+        );
+
+      if (
+        confirmed
+      ) {
+        logout();
+      }
+
+    }
+  );
+}
 
 
 /* =========================================================
@@ -4348,6 +4783,7 @@ $('#roleMenuButton')
     }
   );
 
+
 $$('#roleMenu button')
   .forEach(
     (button) => {
@@ -4369,6 +4805,9 @@ $$('#roleMenu button')
             return;
           }
 
+          /*
+           * Không cho đổi role giả lập.
+           */
           if (
             role !==
             state.currentUser.role
@@ -4407,18 +4846,22 @@ $$('#roleMenu button')
 
 
 /* =========================================================
-   OTHER GLOBAL EVENTS
+   GLOBAL EVENTS
 ========================================================= */
 
 $('#mobileMenu')
   ?.addEventListener(
     'click',
-    () =>
+    () => {
+
       $('.sidebar')
         ?.classList.toggle(
           'open'
-        )
+        );
+
+    }
   );
+
 
 $('#closeModal')
   ?.addEventListener(
@@ -4426,18 +4869,22 @@ $('#closeModal')
     closeModal
   );
 
+
 $('#modalBackdrop')
   ?.addEventListener(
     'click',
     (event) => {
+
       if (
         event.target ===
         $('#modalBackdrop')
       ) {
         closeModal();
       }
+
     }
   );
+
 
 $('#searchBtn')
   ?.addEventListener(
@@ -4449,13 +4896,16 @@ $('#searchBtn')
       );
 
       setTimeout(
-        () =>
+        () => {
           $('#mapSearch')
-            ?.focus(),
+            ?.focus();
+        },
         50
       );
+
     }
   );
+
 
 $('#helpBtn')
   ?.addEventListener(
@@ -4470,6 +4920,7 @@ $('#helpBtn')
       )
   );
 
+
 $('#notificationBtn')
   ?.addEventListener(
     'click',
@@ -4478,6 +4929,7 @@ $('#notificationBtn')
         'Backend hiện chưa có Notification API.'
       )
   );
+
 
 $('#profileBtn')
   ?.addEventListener(
@@ -4492,12 +4944,14 @@ $('#profileBtn')
       )
   );
 
+
 document.addEventListener(
   'keydown',
   (event) => {
 
     if (
-      event.key === 'Escape'
+      event.key ===
+      'Escape'
     ) {
       closeModal();
     }
@@ -4511,34 +4965,47 @@ document.addEventListener(
 ========================================================= */
 
 async function bootstrap() {
+
   loadCurrentUser();
+
+  /*
+   * Tạo form đăng nhập
+   * bằng JS để không còn dữ liệu demo
+   * trong index.html.
+   */
+  renderLoginForm();
+
+  /*
+   * Tạo nút đăng xuất.
+   */
+  addLogoutButton();
 
   const token =
     getToken();
 
   /*
-   * Không có token:
-   * -> bắt buộc login thật.
+   * Chưa đăng nhập:
+   * hiện màn hình login.
    */
   if (
     !token ||
     !state.currentUser
   ) {
+
     showAuthScreen(
       true
     );
 
     renderNav();
+
     renderAllViews();
 
     return;
   }
 
-
   /*
-   * Có token:
-   * -> dùng user lưu trong localStorage,
-   * -> gọi API protected.
+   * Đã có JWT:
+   * khôi phục tài khoản.
    */
   state.role =
     state.currentUser.role ||
@@ -4561,6 +5028,7 @@ async function bootstrap() {
   );
 }
 
+
 bootstrap();
 
 
@@ -4573,7 +5041,9 @@ if (
   'undefined' &&
   module.exports
 ) {
+
   module.exports = {
+
     apiCall,
 
     login,
