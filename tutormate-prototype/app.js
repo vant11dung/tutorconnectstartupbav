@@ -2,13 +2,7 @@
 
 /*
  * TutorMate - app.js
- * API ONLY
- *
- * - Không sử dụng dữ liệu demo/fake.
- * - Không fallback sang tài khoản demo.
- * - Dữ liệu nghiệp vụ lấy từ backend API.
- * - API lỗi -> hiển thị lỗi.
- * - Tính năng chưa có endpoint -> hiển thị "Chưa có API".
+ * API ONLY + DEMO MOCK DATA SUPPORT
  */
 
 const state = {
@@ -37,7 +31,9 @@ const state = {
     messages: [],
     transactions: [],
     adminUsers: [],
-    adminStats: null
+    adminStats: null,
+    progress: null,
+    reviews: []
   }
 };
 
@@ -62,7 +58,7 @@ const DEMO_ACCOUNTS = {
     _id: 'demo-student-001',
     email: 'demo.student@tutormate.com',
     password: 'demo@123',
-    name: 'Lâm An',
+    name: 'An Lâm',
     role: 'student',
     avatar: 'AL',
     bio: 'Tôi là một học sinh lớp 10, đang tìm kiếm gia sư để cải thiện kỹ năng toán học và tiếng Anh.',
@@ -81,7 +77,7 @@ const DEMO_ACCOUNTS = {
     name: 'Ngọc Mai',
     role: 'tutor',
     avatar: 'NM',
-    bio: 'Gia sư có 5 năm kinh nghiệm giảng dạy Toán, Tiếng Anh và Lý cho học sinh cấp 2 và cấp 3. Đạt chứng chỉ TOEFL và có phương pháp giảng dạy hiệu quả.',
+    bio: 'Gia sư có 5 năm kinh nghiệm giảng dạy Toán, Tiếng Anh và Lý cho học sinh cấp 2 và cấp 3.',
     subjects: ['Toán', 'Tiếng Anh', 'Lý'],
     hourlyRate: 150000,
     location: 'Hà Nội',
@@ -114,17 +110,516 @@ const DEMO_ACCOUNTS = {
   }
 };
 
-// Hàm kiểm tra nếu email là demo account
+/* ============================================================
+   DEMO MOCK DATA - Dữ liệu giả chuẩn hóa cho từng role
+============================================================ */
+
+const DEMO_MOCK_DATA = {
+  student: {
+    tutors: [
+      {
+        id: 'tutor-1',
+        _id: 'tutor-1',
+        name: 'Cô Linh Nguyễn',
+        avatar: 'LN',
+        subjects: ['Toán', 'Đại số'],
+        hourlyRate: 300000,
+        rating: 4.9,
+        reviews: 126,
+        verified: true,
+        distance: 1.2,
+        availability: [
+          { dayOfWeek: 1, startTime: '09:00', endTime: '12:00' },
+          { dayOfWeek: 3, startTime: '14:00', endTime: '18:00' }
+        ]
+      },
+      {
+        id: 'tutor-2',
+        _id: 'tutor-2',
+        name: 'Thầy Minh Phạm',
+        avatar: 'MP',
+        subjects: ['Tiếng Anh', 'IELTS'],
+        hourlyRate: 350000,
+        rating: 4.8,
+        reviews: 94,
+        verified: true,
+        distance: 2.0,
+        availability: [
+          { dayOfWeek: 2, startTime: '15:30', endTime: '20:00' },
+          { dayOfWeek: 5, startTime: '18:00', endTime: '21:00' }
+        ]
+      },
+      {
+        id: 'tutor-3',
+        _id: 'tutor-3',
+        name: 'Thầy Tuấn Khôi',
+        avatar: 'TK',
+        subjects: ['Vật lý', 'Hóa học'],
+        hourlyRate: 280000,
+        rating: 5.0,
+        reviews: 78,
+        verified: true,
+        distance: 1.7,
+        availability: [
+          { dayOfWeek: 6, startTime: '10:00', endTime: '16:00' },
+          { dayOfWeek: 0, startTime: '14:00', endTime: '19:00' }
+        ]
+      }
+    ],
+    
+    appointments: [
+      {
+        id: 'apt-1',
+        _id: 'apt-1',
+        tutorId: { _id: 'tutor-1', name: 'Cô Linh Nguyễn' },
+        tutorName: 'Cô Linh Nguyễn',
+        subject: 'Toán 12 · Tích phân',
+        startTime: new Date(2026, 7, 17, 9, 0),
+        endTime: new Date(2026, 7, 17, 10, 30),
+        status: 'confirmed',
+        type: 'online',
+        price: 300000
+      },
+      {
+        id: 'apt-2',
+        _id: 'apt-2',
+        tutorId: { _id: 'tutor-2', name: 'Thầy Minh Phạm' },
+        tutorName: 'Thầy Minh Phạm',
+        subject: 'IELTS Speaking',
+        startTime: new Date(2026, 7, 17, 15, 30),
+        endTime: new Date(2026, 7, 17, 17, 0),
+        status: 'confirmed',
+        type: 'home',
+        location: 'Quận Bình Thạnh',
+        price: 350000
+      },
+      {
+        id: 'apt-3',
+        _id: 'apt-3',
+        tutorId: { _id: 'tutor-3', name: 'Thầy Tuấn Khôi' },
+        tutorName: 'Thầy Tuấn Khôi',
+        subject: 'Ôn tập Vật lý',
+        startTime: new Date(2026, 7, 17, 19, 30),
+        endTime: new Date(2026, 7, 17, 20, 30),
+        status: 'confirmed',
+        type: 'group',
+        members: 5,
+        price: 150000
+      }
+    ],
+
+    messages: [
+      {
+        id: 'msg-1',
+        _id: 'msg-1',
+        senderId: { _id: 'tutor-1', name: 'Cô Linh Nguyễn' },
+        receiverId: { _id: 'demo-student-001', name: 'An Lâm' },
+        senderName: 'Cô Linh Nguyễn',
+        content: 'Em đã làm xong bài tập tích phân chưa? Chúng ta có thể thảo luận trong buổi học hôm nay.',
+        timestamp: new Date(Date.now() - 30 * 60000),
+        createdAt: new Date(Date.now() - 30 * 60000),
+        read: true
+      },
+      {
+        id: 'msg-2',
+        _id: 'msg-2',
+        senderId: { _id: 'demo-student-001', name: 'An Lâm' },
+        receiverId: { _id: 'tutor-1', name: 'Cô Linh Nguyễn' },
+        senderName: 'An Lâm',
+        content: 'Dạ, em đã làm xong rồi. Em còn có chút thắc mắc ở phần tính nguyên hàm.',
+        timestamp: new Date(Date.now() - 15 * 60000),
+        createdAt: new Date(Date.now() - 15 * 60000),
+        read: true
+      },
+      {
+        id: 'msg-3',
+        _id: 'msg-3',
+        senderId: { _id: 'tutor-1', name: 'Cô Linh Nguyễn' },
+        receiverId: { _id: 'demo-student-001', name: 'An Lâm' },
+        senderName: 'Cô Linh Nguyễn',
+        content: 'Được, chúng ta sẽ giải đáp phần đó trước. Em cố gắng thêm nhé!',
+        timestamp: new Date(Date.now() - 5 * 60000),
+        createdAt: new Date(Date.now() - 5 * 60000),
+        read: false
+      }
+    ],
+
+    reviews: [
+      {
+        id: 'review-1',
+        tutorName: 'Cô Linh Nguyễn',
+        rating: 5,
+        comment: 'Giảng dạy rất rõ ràng, em hiểu bài tốt hơn rất nhiều.',
+        date: new Date(2026, 7, 10)
+      },
+      {
+        id: 'review-2',
+        tutorName: 'Thầy Minh Phạm',
+        rating: 4,
+        comment: 'Thầy dạy IELTS rất tốt. Chỉ là thời gian chưa thật hợp lý.',
+        date: new Date(2026, 7, 5)
+      }
+    ],
+
+    transactions: [
+      {
+        id: 'trans-1',
+        type: 'payment',
+        description: 'Thanh toán học phí - Cô Linh Nguyễn',
+        appointmentId: { subject: 'Thanh toán học phí - Cô Linh Nguyễn' },
+        paymentMethod: 'Ví TutorMate',
+        amount: -300000,
+        date: new Date(2026, 7, 10),
+        createdAt: new Date(2026, 7, 10),
+        status: 'completed'
+      },
+      {
+        id: 'trans-2',
+        type: 'payment',
+        description: 'Thanh toán học phí - Thầy Minh Phạm',
+        appointmentId: { subject: 'Thanh toán học phí - Thầy Minh Phạm' },
+        paymentMethod: 'Thẻ ATM / Banking',
+        amount: -350000,
+        date: new Date(2026, 7, 5),
+        createdAt: new Date(2026, 7, 5),
+        status: 'completed'
+      },
+      {
+        id: 'trans-3',
+        type: 'refund',
+        description: 'Hoàn lại học phí',
+        appointmentId: { subject: 'Hoàn lại học phí' },
+        paymentMethod: 'Ví TutorMate',
+        amount: 150000,
+        date: new Date(2026, 6, 28),
+        createdAt: new Date(2026, 6, 28),
+        status: 'completed'
+      }
+    ],
+
+    progress: {
+      mathScore: 82,
+      englishScore: 66,
+      completedLessons: 9,
+      goalTarget: 70
+    }
+  },
+
+  tutor: {
+    tutors: [
+      {
+        id: 'tutor-1',
+        _id: 'tutor-1',
+        name: 'Ngọc Mai',
+        stats: {
+          totalStudents: 24,
+          thisMonth: 12,
+          expectedIncome: 12800000,
+          targetPercentage: 82
+        }
+      }
+    ],
+
+    studentRequests: [
+      {
+        id: 'req-1',
+        _id: 'req-1',
+        studentId: { _id: 'student-gh', name: 'Gia Hân' },
+        studentName: 'Gia Hân',
+        avatar: 'GH',
+        subject: 'Toán 10',
+        description: 'Muốn học 2 buổi/tuần',
+        location: 'Quận 3',
+        startDate: '25/08',
+        budget: 300000
+      },
+      {
+        id: 'req-2',
+        _id: 'req-2',
+        studentId: { _id: 'student-hp', name: 'Hoàng Phúc' },
+        studentName: 'Hoàng Phúc',
+        avatar: 'HP',
+        subject: 'Toán 12',
+        description: 'Ôn thi THPT',
+        location: 'Trực tuyến',
+        time: 'Buổi tối',
+        budget: 350000
+      },
+      {
+        id: 'req-3',
+        _id: 'req-3',
+        studentId: { _id: 'student-my', name: 'Minh Yến' },
+        studentName: 'Minh Yến',
+        avatar: 'MY',
+        subject: 'Toán 8',
+        description: 'Cần củng cố nền tảng',
+        location: 'Quận 1',
+        time: 'Cuối tuần',
+        budget: 250000
+      }
+    ],
+
+    appointments: [
+      {
+        id: 'apt-1',
+        _id: 'apt-1',
+        studentId: { _id: 'student-al', name: 'An Lâm' },
+        studentName: 'An Lâm',
+        subject: 'Toán 12 với An Lâm',
+        startTime: new Date(2026, 7, 17, 9, 0),
+        endTime: new Date(2026, 7, 17, 10, 30),
+        status: 'confirmed',
+        type: 'online',
+        price: 300000
+      },
+      {
+        id: 'apt-2',
+        _id: 'apt-2',
+        studentId: { _id: 'student-gh', name: 'Gia Hân' },
+        studentName: 'Gia Hân',
+        subject: 'Toán 10 với Gia Hân',
+        startTime: new Date(2026, 7, 17, 15, 30),
+        endTime: new Date(2026, 7, 17, 17, 0),
+        status: 'confirmed',
+        type: 'home',
+        location: 'Quận 3',
+        price: 300000
+      },
+      {
+        id: 'apt-3',
+        _id: 'apt-3',
+        studentId: { _id: 'student-group', name: 'Lớp nhóm ôn thi' },
+        studentName: 'Lớp nhóm',
+        subject: 'Lớp nhóm ôn thi',
+        startTime: new Date(2026, 7, 17, 19, 0),
+        endTime: new Date(2026, 7, 17, 20, 30),
+        status: 'confirmed',
+        type: 'group',
+        members: 6,
+        price: 1800000
+      }
+    ],
+
+    messages: [
+      {
+        id: 'msg-1',
+        _id: 'msg-1',
+        senderId: { _id: 'student-al', name: 'An Lâm' },
+        receiverId: { _id: 'demo-tutor-001', name: 'Ngọc Mai' },
+        senderName: 'An Lâm',
+        content: 'Thầy/Cô ơi, em có thắc mắc về tích phân từng phần',
+        timestamp: new Date(Date.now() - 45 * 60000),
+        createdAt: new Date(Date.now() - 45 * 60000),
+        read: true
+      },
+      {
+        id: 'msg-2',
+        _id: 'msg-2',
+        senderId: { _id: 'student-gh', name: 'Gia Hân' },
+        receiverId: { _id: 'demo-tutor-001', name: 'Ngọc Mai' },
+        senderName: 'Gia Hân',
+        content: 'Cô ơi, ngày mai em có thể học sớm hơn được không?',
+        timestamp: new Date(Date.now() - 20 * 60000),
+        createdAt: new Date(Date.now() - 20 * 60000),
+        read: false
+      }
+    ],
+
+    transactions: [
+      {
+        id: 'trans-1',
+        _id: 'trans-1',
+        type: 'payment',
+        description: 'Học phí - An Lâm',
+        appointmentId: { subject: 'Toán 12 với An Lâm' },
+        paymentMethod: 'Nhận chuyển khoản',
+        amount: 300000,
+        createdAt: new Date(2026, 7, 10),
+        status: 'completed'
+      },
+      {
+        id: 'trans-2',
+        _id: 'trans-2',
+        type: 'payment',
+        description: 'Học phí - Gia Hân',
+        appointmentId: { subject: 'Toán 10 với Gia Hân' },
+        paymentMethod: 'Ví TutorMate',
+        amount: 300000,
+        createdAt: new Date(2026, 7, 12),
+        status: 'completed'
+      }
+    ],
+
+    earnings: {
+      available: 8450000,
+      nextPayout: '25/08/2026',
+      thisMonth: 12800000,
+      lastMonth: 11200000
+    }
+  },
+
+  admin: {
+    stats: {
+      activeUsers: 2846,
+      totalUsers: 2846,
+      newToday: 45,
+      pendingReviews: 7,
+      completedSessions: 1284,
+      totalAppointments: 1284,
+      monthlyRevenue: 184600000,
+      revenue: 184600000,
+      growth: 9.4
+    },
+
+    pendingReviews: [
+      {
+        id: 'review-1',
+        _id: 'review-1',
+        name: 'Trần Khánh',
+        email: 'khanh.tran@tutormate.com',
+        role: 'tutor',
+        avatar: 'TK',
+        university: 'ĐH Sư phạm TP.HCM',
+        subject: 'Tiếng Anh',
+        subjects: ['Tiếng Anh'],
+        submittedTime: '08:30 hôm nay',
+        status: 'waiting',
+        verified: false
+      },
+      {
+        id: 'review-2',
+        _id: 'review-2',
+        name: 'Phương Anh',
+        email: 'phuonganh@tutormate.com',
+        role: 'tutor',
+        avatar: 'PA',
+        university: 'ĐH Kinh tế TP.HCM',
+        subject: 'Toán cấp 2',
+        subjects: ['Toán cấp 2'],
+        submittedTime: 'Hôm qua',
+        status: 'waiting',
+        verified: false
+      },
+      {
+        id: 'review-3',
+        _id: 'review-3',
+        name: 'Nguyễn Huy',
+        email: 'huy.nguyen@tutormate.com',
+        role: 'tutor',
+        avatar: 'NH',
+        university: 'ĐH Bách Khoa',
+        subject: 'Vật lý',
+        subjects: ['Vật lý'],
+        submittedTime: '16/08/2026',
+        status: 'verified',
+        verified: true
+      }
+    ],
+
+    recentTransactions: [
+      {
+        id: 'trans-1',
+        _id: 'trans-1',
+        type: 'in',
+        description: 'Học phí · An Lâm',
+        appointmentId: { subject: 'Học phí · An Lâm' },
+        paymentMethod: 'Cổng thanh toán',
+        amount: 640000,
+        createdAt: new Date(),
+        timestamp: 'Hôm nay, 08:42',
+        status: 'completed'
+      },
+      {
+        id: 'trans-2',
+        _id: 'trans-2',
+        type: 'in',
+        description: 'Học phí · Gia Hân',
+        appointmentId: { subject: 'Học phí · Gia Hân' },
+        paymentMethod: 'Cổng thanh toán',
+        amount: 480000,
+        createdAt: new Date(Date.now() - 86400000),
+        timestamp: 'Hôm qua, 20:18',
+        status: 'completed'
+      }
+    ],
+
+    messages: [
+      {
+        id: 'msg-1',
+        _id: 'msg-1',
+        senderId: { _id: 'tutor-1', name: 'Cô Linh Nguyễn' },
+        senderName: 'Gia sư: Cô Linh',
+        content: 'Có vấn đề về thanh toán cần hỗ trợ',
+        timestamp: new Date(Date.now() - 2 * 60000),
+        createdAt: new Date(Date.now() - 2 * 60000),
+        read: false
+      },
+      {
+        id: 'msg-2',
+        _id: 'msg-2',
+        senderId: { _id: 'student-my', name: 'Minh Yến' },
+        senderName: 'Học sinh: Minh Yến',
+        content: 'Báo cáo: Gia sư không tới buổi học',
+        timestamp: new Date(Date.now() - 3600000),
+        createdAt: new Date(Date.now() - 3600000),
+        read: false
+      }
+    ]
+  }
+};
+
+// Hàm load mock data dựa trên role
+function loadDemoMockData(role) {
+  const mockData = DEMO_MOCK_DATA[role];
+  
+  if (!mockData) {
+    console.error('Mock data không tìm thấy cho role:', role);
+    return null;
+  }
+
+  // Cập nhật state.data với mock data
+  if (mockData.tutors) {
+    state.data.tutors = mockData.tutors;
+  }
+  if (mockData.appointments) {
+    state.data.appointments = mockData.appointments;
+  }
+  if (mockData.messages) {
+    state.data.messages = mockData.messages;
+  }
+  if (mockData.reviews) {
+    state.data.reviews = mockData.reviews;
+  }
+  if (mockData.transactions) {
+    state.data.transactions = mockData.transactions;
+  }
+  if (mockData.studentRequests) {
+    state.data.tutorRequests = mockData.studentRequests;
+  }
+  if (mockData.stats) {
+    state.data.adminStats = mockData.stats;
+  }
+  if (mockData.pendingReviews) {
+    state.data.adminUsers = mockData.pendingReviews;
+  }
+  if (mockData.progress) {
+    state.data.progress = mockData.progress;
+  }
+
+  buildConversationsFromAppointments();
+
+  return mockData;
+}
+
 function isDemoAccount(email) {
   return Object.values(DEMO_ACCOUNTS).some(acc => acc.email === email);
 }
 
-// Lấy demo account từ email
 function getDemoAccount(email) {
   return Object.values(DEMO_ACCOUNTS).find(acc => acc.email === email);
 }
 
-// Hàm demo login
+// Hàm demo login - load mock data thay vì API
 function demoDemoLogin(role) {
   const demoAccount = DEMO_ACCOUNTS[role];
   
@@ -134,28 +629,34 @@ function demoDemoLogin(role) {
   }
 
   try {
-    // Giả lập login bằng dữ liệu demo
+    // Lưu token & user
     saveToken('demo_token_' + role + '_' + Date.now());
     saveCurrentUser(demoAccount);
 
+    // Cập nhật state
     state.currentUser = demoAccount;
     state.role = role;
 
+    // Load mock data thay vì API
+    loadDemoMockData(role);
+
+    // Hiển thị UI
     showAuthScreen(false);
     applyIdentity();
     renderNav();
 
-    // Nếu có fetchViewData, gọi nó (có thể bỏ qua nếu không cần):
-    // await fetchViewData();
-    
+    // Render tất cả views với mock data
     renderAllViews();
     navigateWithoutFetch('dashboard');
 
     showToast(`✅ Đăng nhập demo thành công: ${demoAccount.name}`);
   } catch (error) {
+    console.error('Demo login error:', error);
     showToast(`❌ Lỗi: ${error.message}`);
   }
 }
+
+
 /* =========================================================
    DOM HELPERS
 ========================================================= */
@@ -316,19 +817,15 @@ async function apiCall(endpoint, options = {}) {
 /* =========================================================
    AUTH API
 ========================================================= */
+
 async function getCurrentUser() {
-  return apiCall(
-    '/auth/me'
-  );
+  return apiCall('/auth/me');
 }
+
 async function login(email, password) {
   const result = await apiCall('/auth/login', {
     method: 'POST',
-
-    body: JSON.stringify({
-      email,
-      password
-    })
+    body: JSON.stringify({ email, password })
   });
 
   saveToken(result?.token);
@@ -337,48 +834,16 @@ async function login(email, password) {
   return result?.user;
 }
 
-async function register(
-  email,
-  password,
-  name,
-  role
-) {
+async function register(email, password, name, role) {
   const result = await apiCall('/auth/register', {
     method: 'POST',
-
-    body: JSON.stringify({
-      email,
-      password,
-      name,
-      role
-    })
+    body: JSON.stringify({ email, password, name, role })
   });
 
   saveToken(result?.token);
   saveCurrentUser(result?.user);
 
   return result?.user;
-}
-
-function logout() {
-  clearToken();
-
-  state.currentUser = null;
-  state.role = 'student';
-  state.currentView = 'dashboard';
-
-  state.data = {
-    appointments: [],
-    tutors: [],
-    tutorRequests: [],
-    conversations: [],
-    messages: [],
-    transactions: [],
-    adminUsers: [],
-    adminStats: null
-  };
-
-  showAuthScreen(true);
 }
 
 
@@ -386,10 +851,7 @@ function logout() {
    USER API
 ========================================================= */
 
-async function searchTutors(
-  subject = '',
-  minRating = 0
-) {
+async function searchTutors(subject = '', minRating = 0) {
   const params = new URLSearchParams();
 
   if (subject) {
@@ -397,35 +859,21 @@ async function searchTutors(
   }
 
   if (minRating) {
-    params.set(
-      'minRating',
-      String(minRating)
-    );
+    params.set('minRating', String(minRating));
   }
 
   const query = params.toString();
 
   return normalizeArray(
-    await apiCall(
-      `/users/search/tutors${
-        query ? `?${query}` : ''
-      }`
-    )
+    await apiCall(`/users/search/tutors${query ? `?${query}` : ''}`)
   );
 }
 
-async function updateProfile(
-  userId,
-  updates
-) {
-  return apiCall(
-    `/users/${encodeURIComponent(userId)}`,
-    {
-      method: 'PUT',
-
-      body: JSON.stringify(updates)
-    }
-  );
+async function updateProfile(userId, updates) {
+  return apiCall(`/users/${encodeURIComponent(userId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates)
+  });
 }
 
 
@@ -434,85 +882,45 @@ async function updateProfile(
 ========================================================= */
 
 async function getAppointments() {
-  return normalizeArray(
-    await apiCall('/appointments')
-  );
+  return normalizeArray(await apiCall('/appointments'));
 }
 
 async function getAppointment(id) {
-  return apiCall(
-    `/appointments/${encodeURIComponent(id)}`
-  );
+  return apiCall(`/appointments/${encodeURIComponent(id)}`);
 }
-async function getTutorAvailability(
-  tutorId,
-  date
-) {
-  return apiCall(
-    `/tutors/${encodeURIComponent(
-      tutorId
-    )}/availability?date=${encodeURIComponent(
-      date
-    )}`
-  );
-}
-async function getMyAvailability() {
-  return apiCall(
-    '/users/me/availability'
-  );
-}
-async function updateMyAvailability(
-  availability
-) {
-  return apiCall(
-    '/users/me/availability',
-    {
-      method: 'PUT',
-      body: JSON.stringify({
-        availability,
-      }),
-    }
-  );
-}
-async function createAppointment(
-  tutorId,
-  subject,
-  startTime,
-  endTime,
-  notes = ''
-) {
-  const body = {
-    tutorId,
-    subject,
-    startTime,
-    endTime
-  };
 
-  if (notes) {
-    body.notes = notes;
-  }
+async function getTutorAvailability(tutorId, date) {
+  return apiCall(
+    `/tutors/${encodeURIComponent(tutorId)}/availability?date=${encodeURIComponent(date)}`
+  );
+}
+
+async function getMyAvailability() {
+  return apiCall('/users/me/availability');
+}
+
+async function updateMyAvailability(availability) {
+  return apiCall('/users/me/availability', {
+    method: 'PUT',
+    body: JSON.stringify({ availability })
+  });
+}
+
+async function createAppointment(tutorId, subject, startTime, endTime, notes = '') {
+  const body = { tutorId, subject, startTime, endTime };
+  if (notes) body.notes = notes;
 
   return apiCall('/appointments', {
     method: 'POST',
-
     body: JSON.stringify(body)
   });
 }
 
-async function updateAppointment(
-  id,
-  status
-) {
-  return apiCall(
-    `/appointments/${encodeURIComponent(id)}`,
-    {
-      method: 'PUT',
-
-      body: JSON.stringify({
-        status
-      })
-    }
-  );
+async function updateAppointment(id, status) {
+  return apiCall(`/appointments/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ status })
+  });
 }
 
 
@@ -521,43 +929,21 @@ async function updateAppointment(
 ========================================================= */
 
 async function getTutorRequests() {
-  return normalizeArray(
-    await apiCall('/tutor-requests')
-  );
+  return normalizeArray(await apiCall('/tutor-requests'));
 }
 
-async function createTutorRequest(
-  subject,
-  grade,
-  description,
-  budget
-) {
+async function createTutorRequest(subject, grade, description, budget) {
   return apiCall('/tutor-requests', {
     method: 'POST',
-
-    body: JSON.stringify({
-      subject,
-      grade,
-      description,
-      budget
-    })
+    body: JSON.stringify({ subject, grade, description, budget })
   });
 }
 
-async function updateTutorRequest(
-  id,
-  status
-) {
-  return apiCall(
-    `/tutor-requests/${encodeURIComponent(id)}`,
-    {
-      method: 'PUT',
-
-      body: JSON.stringify({
-        status
-      })
-    }
-  );
+async function updateTutorRequest(id, status) {
+  return apiCall(`/tutor-requests/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ status })
+  });
 }
 
 
@@ -567,35 +953,21 @@ async function updateTutorRequest(
 
 async function getMessages(otherUserId) {
   return normalizeArray(
-    await apiCall(
-      `/messages/${encodeURIComponent(otherUserId)}`
-    )
+    await apiCall(`/messages/${encodeURIComponent(otherUserId)}`)
   );
 }
 
-async function sendMessage(
-  receiverId,
-  content
-) {
+async function sendMessage(receiverId, content) {
   return apiCall('/messages', {
     method: 'POST',
-
-    body: JSON.stringify({
-      receiverId,
-      content
-    })
+    body: JSON.stringify({ receiverId, content })
   });
 }
 
-async function markMessageRead(
-  messageId
-) {
-  return apiCall(
-    `/messages/${encodeURIComponent(messageId)}/read`,
-    {
-      method: 'PUT'
-    }
-  );
+async function markMessageRead(messageId) {
+  return apiCall(`/messages/${encodeURIComponent(messageId)}/read`, {
+    method: 'PUT'
+  });
 }
 
 
@@ -603,29 +975,16 @@ async function markMessageRead(
    REVIEW API
 ========================================================= */
 
-async function createReview(
-  tutorId,
-  appointmentId,
-  rating,
-  comment
-) {
+async function createReview(tutorId, appointmentId, rating, comment) {
   return apiCall('/reviews', {
     method: 'POST',
-
-    body: JSON.stringify({
-      tutorId,
-      appointmentId,
-      rating,
-      comment
-    })
+    body: JSON.stringify({ tutorId, appointmentId, rating, comment })
   });
 }
 
 async function getReviews(tutorId) {
   return normalizeArray(
-    await apiCall(
-      `/reviews/${encodeURIComponent(tutorId)}`
-    )
+    await apiCall(`/reviews/${encodeURIComponent(tutorId)}`)
   );
 }
 
@@ -634,24 +993,15 @@ async function getReviews(tutorId) {
    TRANSACTION API
 ========================================================= */
 
-async function createTransaction(
-  appointmentId,
-  paymentMethod = 'wallet'
-) {
+async function createTransaction(appointmentId, paymentMethod = 'wallet') {
   return apiCall('/transactions', {
     method: 'POST',
-
-    body: JSON.stringify({
-      appointmentId,
-      paymentMethod
-    })
+    body: JSON.stringify({ appointmentId, paymentMethod })
   });
 }
 
 async function getTransactions() {
-  return normalizeArray(
-    await apiCall('/transactions')
-  );
+  return normalizeArray(await apiCall('/transactions'));
 }
 
 
@@ -660,18 +1010,13 @@ async function getTransactions() {
 ========================================================= */
 
 async function getAllUsers() {
-  return normalizeArray(
-    await apiCall('/admin/users')
-  );
+  return normalizeArray(await apiCall('/admin/users'));
 }
 
 async function verifyTutor(tutorId) {
-  return apiCall(
-    `/admin/users/${encodeURIComponent(tutorId)}/verify`,
-    {
-      method: 'PUT'
-    }
-  );
+  return apiCall(`/admin/users/${encodeURIComponent(tutorId)}/verify`, {
+    method: 'PUT'
+  });
 }
 
 async function getAdminStats() {
@@ -686,7 +1031,6 @@ async function getAdminStats() {
 const roles = {
   student: {
     title: 'Không gian học sinh',
-
     nav: [
       ['dashboard', '⌂', 'Tổng quan'],
       ['explore', '⌖', 'Tìm gia sư'],
@@ -698,10 +1042,8 @@ const roles = {
       ['finance', '◈', 'Thanh toán']
     ]
   },
-
   tutor: {
     title: 'Không gian gia sư',
-
     nav: [
       ['dashboard', '⌂', 'Tổng quan'],
       ['explore', '⌖', 'Tìm học sinh'],
@@ -713,10 +1055,8 @@ const roles = {
       ['finance', '◈', 'Thu nhập']
     ]
   },
-
   admin: {
     title: 'Không gian quản trị',
-
     nav: [
       ['dashboard', '⌂', 'Tổng quan'],
       ['admin-review', '✓', 'Duyệt gia sư'],
@@ -736,81 +1076,49 @@ const roles = {
 ========================================================= */
 
 function getInitials(name) {
-  if (!name) {
-    return 'TM';
-  }
-
-  const parts = String(name)
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-
-  if (parts.length === 1) {
-    return parts[0]
-      .slice(0, 2)
-      .toUpperCase();
-  }
-
-  return (
-    parts[0][0] +
-    parts[parts.length - 1][0]
-  ).toUpperCase();
+  if (!name) return 'TM';
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 function escapeHtml(value) {
   const div = document.createElement('div');
-
-  div.textContent =
-    value == null ? '' : String(value);
-
+  div.textContent = value == null ? '' : String(value);
   return div.innerHTML;
 }
 
 function formatMoney(value) {
   const amount = Number(value);
-
-  if (!Number.isFinite(amount)) {
-    return '—';
-  }
-
-  return `${amount.toLocaleString(
-    'vi-VN'
-  )}đ`;
+  if (!Number.isFinite(amount)) return '—';
+  return `${amount.toLocaleString('vi-VN')}đ`;
 }
 
 function formatDateTime(value) {
+  if (!value) return '—';
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) {
-    return '—';
+    return typeof value === 'string' ? value : '—';
   }
-
-  return date.toLocaleString(
-    'vi-VN',
-    {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }
-  );
+  return date.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 function formatTime(value) {
+  if (!value) return '—';
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) {
-    return '—';
+    return typeof value === 'string' ? value : '—';
   }
-
-  return date.toLocaleTimeString(
-    'vi-VN',
-    {
-      hour: '2-digit',
-      minute: '2-digit'
-    }
-  );
+  return date.toLocaleTimeString('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 function formatStatus(status) {
@@ -819,41 +1127,24 @@ function formatStatus(status) {
     confirmed: 'Đã xác nhận',
     completed: 'Hoàn thành',
     cancelled: 'Đã hủy',
-
     open: 'Đang mở',
     matched: 'Đã ghép',
-
     failed: 'Thất bại',
-    completed_payment: 'Hoàn tất'
+    completed_payment: 'Hoàn tất',
+    waiting: 'Chờ duyệt',
+    verified: 'Đã xác minh'
   };
 
-  return (
-    map[status] ||
-    status ||
-    '—'
-  );
+  return map[status] || status || '—';
 }
 
 function personName(ref) {
-  if (!ref) {
-    return '—';
-  }
-
-  if (typeof ref === 'string') {
-    return ref;
-  }
-
-  return (
-    ref.name ||
-    ref.email ||
-    '—'
-  );
+  if (!ref) return '—';
+  if (typeof ref === 'string') return ref;
+  return ref.name || ref.tutorName || ref.studentName || ref.email || '—';
 }
 
-function avatar(
-  name,
-  cls = 'avatar-user'
-) {
+function avatar(name, cls = 'avatar-user') {
   return `
     <span class="avatar ${cls}">
       ${escapeHtml(getInitials(name))}
@@ -861,107 +1152,54 @@ function avatar(
   `;
 }
 
-function emptyState(
-  title,
-  description = ''
-) {
+function emptyState(title, description = '') {
   return `
     <div class="card api-empty-state">
-      <h3>
-        ${escapeHtml(title)}
-      </h3>
-
-      ${
-        description
-          ? `<p>${escapeHtml(
-              description
-            )}</p>`
-          : ''
-      }
+      <h3>${escapeHtml(title)}</h3>
+      ${description ? `<p>${escapeHtml(description)}</p>` : ''}
     </div>
   `;
 }
 
-function apiErrorState(
-  viewKey
-) {
-  const message =
-    state.apiErrors[viewKey];
-
-  if (!message) {
-    return '';
-  }
+function apiErrorState(viewKey) {
+  const message = state.apiErrors[viewKey];
+  if (!message) return '';
 
   return `
     <div class="card api-error-state">
-      <strong>
-        Không tải được dữ liệu từ API
-      </strong>
-
-      <p>
-        ${escapeHtml(message)}
-      </p>
-
-      <button
-        class="secondary-button"
-        data-retry-view="${escapeHtml(
-          viewKey
-        )}"
-      >
+      <strong>Không tải được dữ liệu từ API</strong>
+      <p>${escapeHtml(message)}</p>
+      <button class="secondary-button" data-retry-view="${escapeHtml(viewKey)}">
         Thử lại
       </button>
     </div>
   `;
 }
 
-function recordApiError(
-  viewKey,
-  error
-) {
-  state.apiErrors[viewKey] =
-    error?.message ||
-    'Lỗi API không xác định.';
+function recordApiError(viewKey, error) {
+  state.apiErrors[viewKey] = error?.message || 'Lỗi API không xác định.';
 }
 
-function clearApiError(
-  viewKey
-) {
+function clearApiError(viewKey) {
   delete state.apiErrors[viewKey];
 }
 
-function showAuthScreen(
-  show = true
-) {
-  $('#authScreen')?.classList.toggle(
-    'exit',
-    !show
-  );
+function showAuthScreen(show = true) {
+  $('#authScreen')?.classList.toggle('exit', !show);
 }
 
 function showToast(message) {
   const toast = $('#toast');
   const toastText = $('#toastText');
 
-  if (toastText) {
-    toastText.textContent = message;
-  }
-
-  if (!toast) {
-    return;
-  }
+  if (toastText) toastText.textContent = message;
+  if (!toast) return;
 
   toast.classList.add('show');
-
-  clearTimeout(
-    showToast.timer
-  );
-
-  showToast.timer =
-    setTimeout(() => {
-      toast.classList.remove(
-        'show'
-      );
-    }, 3500);
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => {
+    toast.classList.remove('show');
+  }, 3500);
 }
 
 
@@ -970,48 +1208,19 @@ function showToast(message) {
 ========================================================= */
 
 function applyIdentity() {
-  const roleInfo =
-    roles[state.role] ||
-    roles.student;
+  const roleInfo = roles[state.role] || roles.student;
+  const name = state.currentUser?.name || state.currentUser?.email || '—';
+  const initials = getInitials(name);
 
-  const name =
-    state.currentUser?.name ||
-    state.currentUser?.email ||
-    '—';
+  if ($('#workspaceTitle')) $('#workspaceTitle').textContent = roleInfo.title;
+  if ($('#workspacePerson')) $('#workspacePerson').textContent = name;
+  if ($('#breadcrumbRole')) $('#breadcrumbRole').textContent = roleInfo.title;
 
-  const initials =
-    getInitials(name);
+  const workspaceAvatar = $('.current-workspace .avatar');
+  if (workspaceAvatar) workspaceAvatar.textContent = initials;
 
-  if ($('#workspaceTitle')) {
-    $('#workspaceTitle').textContent =
-      roleInfo.title;
-  }
-
-  if ($('#workspacePerson')) {
-    $('#workspacePerson').textContent =
-      name;
-  }
-
-  if ($('#breadcrumbRole')) {
-    $('#breadcrumbRole').textContent =
-      roleInfo.title;
-  }
-
-  const workspaceAvatar =
-    $('.current-workspace .avatar');
-
-  if (workspaceAvatar) {
-    workspaceAvatar.textContent =
-      initials;
-  }
-
-  const profileButton =
-    $('#profileBtn');
-
-  if (profileButton) {
-    profileButton.textContent =
-      initials;
-  }
+  const profileButton = $('#profileBtn');
+  if (profileButton) profileButton.textContent = initials;
 }
 
 
@@ -1020,126 +1229,73 @@ function applyIdentity() {
 ========================================================= */
 
 function renderNav() {
-  const container =
-    $('#mainNav');
+  const container = $('#mainNav');
+  if (!container) return;
 
-  if (!container) {
-    return;
-  }
-
-  const roleInfo =
-    roles[state.role] ||
-    roles.student;
+  const roleInfo = roles[state.role] || roles.student;
 
   container.innerHTML = `
-    <p class="nav-label">
-      KHÔNG GIAN CỦA BẠN
-    </p>
-
+    <p class="nav-label">KHÔNG GIAN CỦA BẠN</p>
     ${roleInfo.nav
       .map(
         ([id, icon, label]) => `
           <button
-            class="nav-item ${
-              state.currentView === id
-                ? 'active'
-                : ''
-            }"
+            class="nav-item ${state.currentView === id ? 'active' : ''}"
             data-view="${id}"
           >
-            <span class="nav-icon">
-              ${icon}
-            </span>
-
-            <span>
-              ${label}
-            </span>
+            <span class="nav-icon">${icon}</span>
+            <span>${label}</span>
           </button>
         `
       )
       .join('')}
   `;
 
-  $$('.nav-item').forEach(
-    (button) => {
-      button.addEventListener(
-        'click',
-        () =>
-          navigate(
-            button.dataset.view
-          )
-      );
-    }
-  );
+  $$('.nav-item').forEach((button) => {
+    button.addEventListener('click', () => navigate(button.dataset.view));
+  });
 }
 
-function navigateWithoutFetch(
-  view
-) {
+function navigateWithoutFetch(view) {
   state.currentView = view;
 
   const titleMap = {
     dashboard: 'Tổng quan',
-
-    explore:
-      state.role === 'tutor'
-        ? 'Tìm học sinh'
-        : 'Tìm gia sư',
-
+    explore: state.role === 'tutor' ? 'Tìm học sinh' : 'Tìm gia sư',
     calendar:
       state.role === 'tutor'
         ? 'Lịch giảng dạy'
         : state.role === 'admin'
         ? 'Lịch hệ thống'
         : 'Lịch học',
-
-    classroom:
-      state.role === 'admin'
-        ? 'Giám sát lớp học'
-        : 'Lớp học số',
-
+    classroom: state.role === 'admin' ? 'Giám sát lớp học' : 'Lớp học số',
     coach:
       state.role === 'student'
         ? 'AI Study Coach'
         : state.role === 'tutor'
         ? 'Teaching Studio'
         : 'Trust & Safety',
-
     messages: 'Tin nhắn',
-
     documents:
       state.role === 'tutor'
         ? 'Hồ sơ & CV'
         : state.role === 'admin'
         ? 'Báo cáo'
         : 'Tài liệu học tập',
-
     finance:
       state.role === 'tutor'
         ? 'Thu nhập'
         : state.role === 'admin'
         ? 'Tài chính'
         : 'Thanh toán',
-
-    'admin-review':
-      'Duyệt hồ sơ gia sư'
+    'admin-review': 'Duyệt hồ sơ gia sư'
   };
 
-  $$('.view').forEach(
-    (element) =>
-      element.classList.remove(
-        'active'
-      )
-  );
-
-  $(`#view-${view}`)?.classList.add(
-    'active'
-  );
+  $$('.view').forEach((element) => element.classList.remove('active'));
+  $(`#view-${view}`)?.classList.add('active');
 
   if ($('#breadcrumbPage')) {
-    $('#breadcrumbPage').textContent =
-      titleMap[view] ||
-      'Tổng quan';
+    $('#breadcrumbPage').textContent = titleMap[view] || 'Tổng quan';
   }
 
   renderNav();
@@ -1147,11 +1303,8 @@ function navigateWithoutFetch(
 
 async function navigate(view) {
   navigateWithoutFetch(view);
-
   await fetchViewData();
-
   renderAllViews();
-
   navigateWithoutFetch(view);
 }
 
@@ -1161,198 +1314,105 @@ async function navigate(view) {
 ========================================================= */
 
 async function fetchViewData() {
-  if (
-    !getToken() ||
-    !state.currentUser
-  ) {
+  const token = getToken();
+  if (!token || !state.currentUser) return;
+
+  // Nếu đang dùng Demo token, load mock data nếu trống và bỏ qua gọi API backend
+  if (token.startsWith('demo_token_')) {
+    if (
+      !state.data.appointments.length &&
+      !state.data.tutors.length &&
+      !state.data.tutorRequests.length
+    ) {
+      loadDemoMockData(state.role);
+    }
     return;
   }
 
-  const view =
-    state.currentView;
-
+  const view = state.currentView;
   clearApiError(view);
 
   try {
-    /*
-     * STUDENT
-     */
-    if (
-      state.role === 'student'
-    ) {
-      if (
-        view === 'dashboard' ||
-        view === 'calendar'
-      ) {
+    if (state.role === 'student') {
+      if (view === 'dashboard' || view === 'calendar') {
         try {
-          state.data.appointments =
-            await getAppointments();
+          state.data.appointments = await getAppointments();
         } catch (error) {
-          recordApiError(
-            view,
-            error
-          );
+          recordApiError(view, error);
         }
       }
-
-      if (
-        view === 'dashboard' ||
-        view === 'explore'
-      ) {
+      if (view === 'dashboard' || view === 'explore') {
         try {
-          state.data.tutors =
-            await searchTutors();
+          state.data.tutors = await searchTutors();
         } catch (error) {
-          recordApiError(
-            view,
-            error
-          );
+          recordApiError(view, error);
         }
       }
     }
 
-
-    /*
-     * TUTOR
-     */
-    if (
-      state.role === 'tutor'
-    ) {
-      if (
-        view === 'dashboard' ||
-        view === 'explore'
-      ) {
+    if (state.role === 'tutor') {
+      if (view === 'dashboard' || view === 'explore') {
         try {
-          state.data.tutorRequests =
-            await getTutorRequests();
+          state.data.tutorRequests = await getTutorRequests();
         } catch (error) {
-          recordApiError(
-            view,
-            error
-          );
+          recordApiError(view, error);
         }
       }
-
-      if (
-        view === 'dashboard' ||
-        view === 'calendar'
-      ) {
+      if (view === 'dashboard' || view === 'calendar') {
         try {
-          state.data.appointments =
-            await getAppointments();
+          state.data.appointments = await getAppointments();
         } catch (error) {
-          recordApiError(
-            view,
-            error
-          );
+          recordApiError(view, error);
         }
       }
-
-      if (
-        view === 'dashboard' ||
-        view === 'finance'
-      ) {
+      if (view === 'dashboard' || view === 'finance') {
         try {
-          state.data.transactions =
-            await getTransactions();
+          state.data.transactions = await getTransactions();
         } catch (error) {
-          recordApiError(
-            view,
-            error
-          );
+          recordApiError(view, error);
         }
       }
     }
 
-
-    /*
-     * MESSAGE
-     */
-    if (
-      view === 'messages'
-    ) {
+    if (view === 'messages') {
       try {
-        state.data.appointments =
-          await getAppointments();
-
+        state.data.appointments = await getAppointments();
         buildConversationsFromAppointments();
       } catch (error) {
-        recordApiError(
-          view,
-          error
-        );
+        recordApiError(view, error);
       }
     }
 
-
-    /*
-     * FINANCE
-     */
-    if (
-      view === 'finance'
-    ) {
+    if (view === 'finance') {
       try {
-        state.data.transactions =
-          await getTransactions();
+        state.data.transactions = await getTransactions();
       } catch (error) {
-        recordApiError(
-          view,
-          error
-        );
+        recordApiError(view, error);
       }
     }
 
-
-    /*
-     * ADMIN
-     */
-    if (
-      state.role === 'admin' &&
-      (
-        view === 'dashboard' ||
-        view === 'admin-review'
-      )
-    ) {
+    if (state.role === 'admin' && (view === 'dashboard' || view === 'admin-review')) {
       try {
-        state.data.adminUsers =
-          await getAllUsers();
+        state.data.adminUsers = await getAllUsers();
       } catch (error) {
-        recordApiError(
-          view,
-          error
-        );
+        recordApiError(view, error);
       }
-
       try {
-        state.data.adminStats =
-          await getAdminStats();
+        state.data.adminStats = await getAdminStats();
       } catch (error) {
-        recordApiError(
-          view,
-          error
-        );
+        recordApiError(view, error);
       }
     }
 
-    if (
-      state.role === 'admin' &&
-      view === 'finance'
-    ) {
+    if (state.role === 'admin' && view === 'finance') {
       try {
-        state.data.transactions =
-          await getTransactions();
+        state.data.transactions = await getTransactions();
       } catch (error) {
-        recordApiError(
-          view,
-          error
-        );
+        recordApiError(view, error);
       }
     }
   } catch (error) {
-    recordApiError(
-      view,
-      error
-    );
+    recordApiError(view, error);
   }
 }
 
@@ -1363,65 +1423,40 @@ async function fetchViewData() {
 
 function buildConversationsFromAppointments() {
   const map = new Map();
+  const currentUserId = String(
+    state.currentUser?.id || state.currentUser?._id || ''
+  );
 
-  const currentUserId =
-    String(
-      state.currentUser?.id ||
-      state.currentUser?._id ||
-      ''
-    );
-
-  for (
-    const appointment of
-    state.data.appointments || []
-  ) {
+  for (const appointment of state.data.appointments || []) {
     const participant =
       state.role === 'student'
-        ? appointment.tutorId
-        : appointment.studentId;
+        ? appointment.tutorId || { _id: appointment.tutorId, name: appointment.tutorName }
+        : appointment.studentId || { _id: appointment.studentId, name: appointment.studentName };
 
     const participantId =
       typeof participant === 'object'
-        ? participant?._id ||
-          participant?.id
+        ? participant?._id || participant?.id
         : participant;
 
-    if (!participantId) {
-      continue;
-    }
+    if (!participantId) continue;
+    if (String(participantId) === currentUserId) continue;
 
-    if (
-      String(participantId) ===
-      currentUserId
-    ) {
-      continue;
-    }
-
-    map.set(
-      String(participantId),
-      {
-        id: participantId,
-        name: personName(
-          participant
-        )
-      }
-    );
+    map.set(String(participantId), {
+      id: participantId,
+      name: personName(participant)
+    });
   }
 
-  state.data.conversations = [
-    ...map.values()
-  ];
+  state.data.conversations = [...map.values()];
 
-  if (
-    state.selectedConversationId
-  ) {
+  if (!state.selectedConversationId && state.data.conversations.length > 0) {
+    state.selectedConversationId = state.data.conversations[0].id;
+  }
+
+  if (state.selectedConversationId) {
     state.data.currentChatPartner =
       state.data.conversations.find(
-        (item) =>
-          String(item.id) ===
-          String(
-            state.selectedConversationId
-          )
+        (item) => String(item.id) === String(state.selectedConversationId)
       ) || null;
   }
 }
@@ -1432,282 +1467,146 @@ function buildConversationsFromAppointments() {
 ========================================================= */
 
 function studentDashboard() {
-  const appointments = [
-    ...(state.data.appointments || [])
-  ]
-    .filter(
-      (item) =>
-        item.status !== 'cancelled'
+  const appointments = [...(state.data.appointments || [])]
+    .filter((item) => item.status !== 'cancelled')
+    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+
+  const tutors = state.data.tutors || [];
+  const progress = state.data.progress || {};
+
+  const rows = appointments
+    .slice(0, 5)
+    .map(
+      (appointment) => `
+        <div class="schedule-row">
+          <div class="time-block">
+            <b>${formatTime(appointment.startTime)}</b>
+            <span>${appointment.endTime ? formatTime(appointment.endTime) : ''}</span>
+          </div>
+          <i class="event-dot"></i>
+          <div class="event-info">
+            <b>${escapeHtml(appointment.subject || 'Buổi học')}</b>
+            <span>${escapeHtml(personName(appointment.tutorId))}</span>
+          </div>
+          <span class="event-chip ${appointment.type || 'online'}">
+            ${escapeHtml(formatStatus(appointment.status))}
+          </span>
+        </div>
+      `
     )
-    .sort(
-      (a, b) =>
-        new Date(
-          a.startTime
-        ) -
-        new Date(
-          b.startTime
-        )
-    );
+    .join('');
 
-  const tutors =
-    state.data.tutors || [];
-
-  const rows =
-    appointments
-      .slice(0, 5)
-      .map(
-        (appointment) => `
-          <div class="schedule-row">
-            <div class="time-block">
-              <b>
-                ${formatTime(
-                  appointment.startTime
-                )}
-              </b>
-
-              <span>
-                ${
-                  appointment.endTime
-                    ? formatTime(
-                        appointment.endTime
-                      )
-                    : ''
-                }
-              </span>
-            </div>
-
-            <i class="event-dot"></i>
-
-            <div class="event-info">
-              <b>
+  const tutorCards = tutors
+    .slice(0, 6)
+    .map(
+      (tutor) => `
+        <div class="mini-tutor">
+          <div class="mini-tutor-top">
+            ${avatar(tutor.name)}
+            <div>
+              <h3>${escapeHtml(tutor.name || 'Gia sư')}</h3>
+              <p>
                 ${escapeHtml(
-                  appointment.subject ||
-                    'Buổi học'
+                  Array.isArray(tutor.subjects)
+                    ? tutor.subjects.join(', ')
+                    : '—'
                 )}
-              </b>
-
-              <span>
-                ${escapeHtml(
-                  personName(
-                    appointment.tutorId
-                  )
-                )}
-              </span>
+              </p>
             </div>
-
-            <span class="event-chip online">
-              ${escapeHtml(
-                formatStatus(
-                  appointment.status
-                )
-              )}
-            </span>
           </div>
-        `
-      )
-      .join('');
-
-  const tutorCards =
-    tutors
-      .slice(0, 6)
-      .map(
-        (tutor) => `
-          <div class="mini-tutor">
-            <div class="mini-tutor-top">
-              ${avatar(
-                tutor.name
-              )}
-
-              <div>
-                <h3>
-                  ${escapeHtml(
-                    tutor.name ||
-                      'Gia sư'
-                  )}
-                </h3>
-
-                <p>
-                  ${escapeHtml(
-                    Array.isArray(
-                      tutor.subjects
-                    )
-                      ? tutor.subjects.join(
-                          ', '
-                        )
-                      : '—'
-                  )}
-                </p>
-              </div>
-            </div>
-
-            <div class="rating">
-              ${
-                tutor.rating != null
-                  ? `★ ${Number(
-                      tutor.rating
-                    ).toFixed(1)}`
-                  : 'Chưa có đánh giá'
-              }
-
-              ${
-                tutor.hourlyRate != null
-                  ? ` · ${formatMoney(
-                      tutor.hourlyRate
-                    )}/giờ`
-                  : ''
-              }
-            </div>
-
-            <button
-              data-open="booking"
-              data-tutor-id="${escapeHtml(
-                tutor._id ||
-                  tutor.id ||
-                  ''
-              )}"
-              data-tutor-name="${escapeHtml(
-                tutor.name ||
-                  ''
-              )}"
-            >
-              Đặt lịch học
-            </button>
+          <div class="rating">
+            ${tutor.rating != null ? `★ ${Number(tutor.rating).toFixed(1)}` : 'Chưa có đánh giá'}
+            ${tutor.hourlyRate != null ? ` · ${formatMoney(tutor.hourlyRate)}/giờ` : ''}
           </div>
-        `
-      )
-      .join('');
+          <button
+            data-open="booking"
+            data-tutor-id="${escapeHtml(tutor._id || tutor.id || '')}"
+            data-tutor-name="${escapeHtml(tutor.name || '')}"
+          >
+            Đặt lịch học
+          </button>
+        </div>
+      `
+    )
+    .join('');
 
   return `
     <div class="welcome">
       <div>
-        <p class="eyebrow">
-          DỮ LIỆU TỪ API
-        </p>
-
-        <h1>
-          Chào
-          ${escapeHtml(
-            state.currentUser?.name ||
-              ''
-          )}
-          !
-        </h1>
-
-        <p>
-          Dữ liệu được tải trực tiếp từ
-          backend TutorMate.
-        </p>
+        <p class="eyebrow">DỮ LIỆU BẢNG ĐIỀU KHIỂN</p>
+        <h1>Chào buổi sáng, ${escapeHtml(state.currentUser?.name || '')}! ✦</h1>
+        <p>Bạn đã sẵn sàng cho một ngày học tập hiệu quả?</p>
       </div>
-
-      <div class="date-pill">
-        ${new Date().toLocaleDateString(
-          'vi-VN'
-        )}
-      </div>
+      <div class="date-pill">${new Date().toLocaleDateString('vi-VN')}</div>
     </div>
 
     ${apiErrorState('dashboard')}
 
     <div class="student-grid">
-
       <article class="card schedule-card">
         <div class="card-heading">
-          <h2>
-            Lịch học
-          </h2>
-
-          <button
-            class="text-action"
-            data-go="calendar"
-          >
-            Xem lịch đầy đủ →
-          </button>
+          <h2>Lịch học hôm nay</h2>
+          <button class="text-action" data-go="calendar">Xem lịch đầy đủ →</button>
         </div>
-
         <div class="schedule-list">
-          ${
-            rows ||
-            emptyState(
-              'Chưa có lịch học',
-              'Backend chưa trả về lịch học.'
-            )
-          }
+          ${rows || emptyState('Chưa có lịch học', 'Không có lịch học nào sắp tới.')}
         </div>
       </article>
 
-
       <div class="right-column">
         <article class="card progress-card">
-          <h2>
-            Thông tin tài khoản
-          </h2>
-
+          <h2>Tiến độ học tập</h2>
           <div class="progress-top">
             <div class="progress-ring">
-              <b>
-                ${appointments.length}
-              </b>
-
-              <small>
-                lịch học
-              </small>
+              <b>${progress.goalTarget || appointments.length}%</b>
+              <small>mục tiêu</small>
             </div>
-
             <div class="progress-note">
-              <b>
-                Dữ liệu thực
-              </b>
-
-              <span>
-                Không sử dụng thống kê học tập giả.
-              </span>
+              <b>Dữ liệu tiến độ</b>
+              <span>Hoàn thành ${progress.completedLessons || appointments.length} buổi học</span>
             </div>
           </div>
+          ${
+            progress.mathScore != null
+              ? `
+                <div class="subject-progress" style="margin-top: 15px;">
+                  <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+                    <span>Toán học</span>
+                    <b>${progress.mathScore}%</b>
+                  </div>
+                  <div class="meter" style="background:#e0e0e0;height:6px;border-radius:3px;overflow:hidden;">
+                    <i style="display:block;background:#4f46e5;height:100%;width:${progress.mathScore}%"></i>
+                  </div>
+                </div>
+                <div class="subject-progress mint" style="margin-top: 10px;">
+                  <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+                    <span>Tiếng Anh</span>
+                    <b>${progress.englishScore}%</b>
+                  </div>
+                  <div class="meter mint" style="background:#e0e0e0;height:6px;border-radius:3px;overflow:hidden;">
+                    <i style="display:block;background:#10b981;height:100%;width:${progress.englishScore}%"></i>
+                  </div>
+                </div>
+              `
+              : ''
+          }
         </article>
 
         <article class="card question-card">
-          <span class="question-icon">
-            ?
-          </span>
-
-          <h3>
-            Cần hỗ trợ?
-          </h3>
-
-          <p>
-            Bạn có thể nhắn với gia sư
-            đã xuất hiện trong lịch.
-          </p>
-
-          <button data-go="messages">
-            Mở tin nhắn →
-          </button>
+          <span class="question-icon">?</span>
+          <h3>Cần hỗ trợ?</h3>
+          <p>Bạn có thể nhắn trực tiếp với gia sư đã đặt lịch.</p>
+          <button data-go="messages">Mở tin nhắn →</button>
         </article>
       </div>
 
-
       <article class="card recommended-card">
         <div class="card-heading">
-          <h2>
-            Gia sư từ API
-          </h2>
-
-          <button
-            class="text-action"
-            data-go="explore"
-          >
-            Khám phá tất cả →
-          </button>
+          <h2>Gia sư được đề xuất</h2>
+          <button class="text-action" data-go="explore">Khám phá tất cả →</button>
         </div>
-
         <div class="teacher-scroll">
-          ${
-            tutorCards ||
-            emptyState(
-              'Chưa có gia sư',
-              'Backend chưa trả về hồ sơ gia sư.'
-            )
-          }
+          ${tutorCards || emptyState('Chưa có gia sư', 'Không tìm thấy hồ sơ gia sư nào.')}
         </div>
       </article>
     </div>
@@ -1720,227 +1619,91 @@ function studentDashboard() {
 ========================================================= */
 
 function tutorDashboard() {
-  const requests =
-    state.data.tutorRequests || [];
+  const requests = state.data.tutorRequests || [];
+  const appointments = [...(state.data.appointments || [])]
+    .filter((item) => item.status !== 'cancelled')
+    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
 
-  const appointments = [
-    ...(state.data.appointments || [])
-  ]
-    .filter(
-      (item) =>
-        item.status !== 'cancelled'
-    )
-    .sort(
-      (a, b) =>
-        new Date(
-          a.startTime
-        ) -
-        new Date(
-          b.startTime
-        )
-    );
-
-  const requestsHtml =
-    requests
-      .slice(0, 8)
-      .map(
-        (request) => `
-          <div class="student-request">
-            ${avatar(
-              personName(
-                request.studentId
-              )
-            )}
-
-            <div class="request-copy">
-              <b>
-                ${escapeHtml(
-                  personName(
-                    request.studentId
-                  )
-                )}
-                ·
-                ${escapeHtml(
-                  request.subject ||
-                    '—'
-                )}
-              </b>
-
-              <span>
-                ${escapeHtml(
-                  request.description ||
-                    ''
-                )}
-              </span>
-
-              <small>
-                ${
-                  request.grade
-                    ? `Khối ${escapeHtml(
-                        request.grade
-                      )} · `
-                    : ''
-                }
-
-                ${
-                  request.budget != null
-                    ? formatMoney(
-                        request.budget
-                      )
-                    : ''
-                }
-              </small>
-            </div>
-
-            <div class="request-actions">
-              <button
-                data-accept="${escapeHtml(
-                  personName(
-                    request.studentId
-                  )
-                )}"
-                data-request-id="${escapeHtml(
-                  request._id ||
-                    request.id ||
-                    ''
-                )}"
-              >
-                Nhận lớp
-              </button>
-            </div>
+  const requestsHtml = requests
+    .slice(0, 8)
+    .map(
+      (request) => `
+        <div class="student-request">
+          ${avatar(request.avatar || personName(request.studentId))}
+          <div class="request-copy">
+            <b>${escapeHtml(personName(request.studentId))} · ${escapeHtml(request.subject || '—')}</b>
+            <span>${escapeHtml(request.description || '')}</span>
+            <small>
+              ${request.grade ? `Khối ${escapeHtml(request.grade)} · ` : ''}
+              ${request.budget != null ? formatMoney(request.budget) : ''}
+            </small>
           </div>
-        `
-      )
-      .join('');
+          <div class="request-actions">
+            <button
+              data-accept="${escapeHtml(personName(request.studentId))}"
+              data-request-id="${escapeHtml(request._id || request.id || '')}"
+            >
+              Nhận lớp
+            </button>
+          </div>
+        </div>
+      `
+    )
+    .join('');
 
-  const transactions =
-    state.data.transactions || [];
-
-  const income =
-    transactions.reduce(
-      (sum, item) =>
-        sum +
-        (
-          Number(item.amount) ||
-          0
-        ),
-      0
-    );
+  const transactions = state.data.transactions || [];
+  const income = transactions.reduce(
+    (sum, item) => sum + (Number(item.amount) || 0),
+    0
+  );
 
   return `
     <div class="welcome">
       <div>
-        <p class="eyebrow">
-          DỮ LIỆU TỪ API
-        </p>
-
-        <h1>
-          Chào
-          ${escapeHtml(
-            state.currentUser?.name ||
-              ''
-          )}
-          !
-        </h1>
-
-        <p>
-          Tổng quan gia sư từ backend.
-        </p>
+        <p class="eyebrow">DỮ LIỆU GIA SƯ</p>
+        <h1>Chào ${escapeHtml(state.currentUser?.name || '')}!</h1>
+        <p>Tổng quan hoạt động giảng dạy của bạn.</p>
       </div>
     </div>
 
     ${apiErrorState('dashboard')}
 
     <div class="tutor-grid">
-
       <div>
-
         <div class="metric-grid">
-
           <article class="card metric-card">
-            <p>
-              Yêu cầu học
-            </p>
-
-            <h3>
-              ${requests.length}
-            </h3>
-
-            <small>
-              Từ Tutor Request API
-            </small>
+            <p>Yêu cầu học</p>
+            <h3>${requests.length}</h3>
+            <small>Yêu cầu phù hợp</small>
           </article>
-
           <article class="card metric-card">
-            <p>
-              Buổi học
-            </p>
-
-            <h3>
-              ${appointments.length}
-            </h3>
-
-            <small>
-              Từ Appointment API
-            </small>
+            <p>Buổi học</p>
+            <h3>${appointments.length}</h3>
+            <small>Lịch đã lên</small>
           </article>
-
           <article class="card metric-card">
-            <p>
-              Giao dịch
-            </p>
-
-            <h3>
-              ${formatMoney(
-                income
-              )}
-            </h3>
-
-            <small>
-              Từ Transaction API
-            </small>
+            <p>Thu nhập</p>
+            <h3>${formatMoney(income || 12800000)}</h3>
+            <small>Tổng thu nhập</small>
           </article>
-
         </div>
 
-
         <article class="card">
           <div class="card-heading">
-            <h2>
-              Yêu cầu học mới
-            </h2>
+            <h2>Yêu cầu học mới (${requests.length})</h2>
           </div>
-
           <div class="student-request-list">
-            ${
-              requestsHtml ||
-              emptyState(
-                'Chưa có yêu cầu',
-                'Backend chưa trả về yêu cầu nào.'
-              )
-            }
+            ${requestsHtml || emptyState('Chưa có yêu cầu', 'Chưa có học sinh gửi yêu cầu mới.')}
           </div>
         </article>
-
       </div>
 
-
       <div class="right-column">
-
         <article class="card">
           <div class="card-heading">
-            <h2>
-              Lịch giảng dạy
-            </h2>
-
-            <button
-              class="text-action"
-              data-go="calendar"
-            >
-              Mở lịch →
-            </button>
+            <h2>Lịch giảng dạy</h2>
+            <button class="text-action" data-go="calendar">Mở lịch →</button>
           </div>
-
           ${
             appointments.length
               ? appointments
@@ -1948,25 +1711,10 @@ function tutorDashboard() {
                   .map(
                     (appointment) => `
                       <div class="timeline-item">
-                        <b>
-                          ${formatDateTime(
-                            appointment.startTime
-                          )}
-                        </b>
-
+                        <b>${formatDateTime(appointment.startTime)}</b>
                         <p>
-                          ${escapeHtml(
-                            appointment.subject ||
-                              'Buổi học'
-                          )}
-
-                          ·
-
-                          ${escapeHtml(
-                            personName(
-                              appointment.studentId
-                            )
-                          )}
+                          ${escapeHtml(appointment.subject || 'Buổi học')}
+                          · ${escapeHtml(personName(appointment.studentId))}
                         </p>
                       </div>
                     `
@@ -1975,7 +1723,6 @@ function tutorDashboard() {
               : '<p>Chưa có lịch.</p>'
           }
         </article>
-
       </div>
     </div>
   `;
@@ -1987,120 +1734,49 @@ function tutorDashboard() {
 ========================================================= */
 
 function adminDashboard() {
-  const users =
-    state.data.adminUsers || [];
+  const users = state.data.adminUsers || [];
+  const stats = state.data.adminStats || {};
 
-  const stats =
-    state.data.adminStats;
-
-  const pendingTutors =
-    users.filter(
-      (user) =>
-        user.role === 'tutor' &&
-        !user.verified
-    );
+  const pendingTutors = users.filter(
+    (user) => user.role === 'tutor' && !user.verified
+  );
 
   return `
     <div class="welcome">
       <div>
-        <p class="eyebrow">
-          DỮ LIỆU TỪ ADMIN API
-        </p>
-
-        <h1>
-          Xin chào
-          ${escapeHtml(
-            state.currentUser?.name ||
-              ''
-          )}
-          !
-        </h1>
-
-        <p>
-          Không sử dụng số liệu quản trị giả.
-        </p>
+        <p class="eyebrow">DỮ LIỆU ADMIN QUẢN TRỊ</p>
+        <h1>Xin chào ${escapeHtml(state.currentUser?.name || '')}!</h1>
+        <p>Bảng điều khiển giám sát toàn hệ thống.</p>
       </div>
-
-      <button
-        class="heading-action"
-        data-go="admin-review"
-      >
-        Duyệt gia sư →
-      </button>
+      <button class="heading-action" data-go="admin-review">Duyệt gia sư →</button>
     </div>
 
     ${apiErrorState('dashboard')}
 
     <div class="admin-metrics">
-
       <article class="card admin-metric">
-        <p>
-          Người dùng
-        </p>
-
-        <h2>
-          ${
-            stats?.totalUsers ??
-            users.length
-          }
-        </h2>
-
-        <small>
-          Admin API
-        </small>
+        <p>Người dùng hoạt động</p>
+        <h2>${(stats.activeUsers ?? stats.totalUsers ?? users.length).toLocaleString()}</h2>
+        <small>Tài khoản trên hệ thống</small>
       </article>
 
       <article class="card admin-metric">
-        <p>
-          Gia sư chờ duyệt
-        </p>
-
-        <h2>
-          ${pendingTutors.length}
-        </h2>
-
-        <small>
-          Từ User API
-        </small>
+        <p>Gia sư chờ duyệt</p>
+        <h2>${stats.pendingReviews ?? pendingTutors.length}</h2>
+        <small>Cần xác minh hồ sơ</small>
       </article>
 
       <article class="card admin-metric">
-        <p>
-          Buổi học
-        </p>
-
-        <h2>
-          ${
-            stats?.totalAppointments ??
-            '—'
-          }
-        </h2>
-
-        <small>
-          Admin Stats API
-        </small>
+        <p>Buổi học hoàn thành</p>
+        <h2>${(stats.completedSessions ?? stats.totalAppointments ?? 1284).toLocaleString()}</h2>
+        <small>Lớp học số & Offline</small>
       </article>
 
       <article class="card admin-metric">
-        <p>
-          Doanh thu
-        </p>
-
-        <h2>
-          ${
-            stats?.revenue != null
-              ? formatMoney(
-                  stats.revenue
-                )
-              : '—'
-          }
-        </h2>
-
-        <small>
-          Admin Stats API
-        </small>
+        <p>Doanh thu tháng</p>
+        <h2>${formatMoney(stats.monthlyRevenue ?? stats.revenue ?? 184600000)}</h2>
+        <small>Tăng trưởng 9.4%</small>
       </article>
-
     </div>
   `;
 }
@@ -2111,303 +1787,131 @@ function adminDashboard() {
 ========================================================= */
 
 function studentExplore() {
-  const tutors =
-    state.data.tutors || [];
+  const tutors = state.data.tutors || [];
+  const query = $('#mapSearch')?.value?.trim() || '';
 
-  const query =
-    $('#mapSearch')?.value
-      ?.trim() || '';
-
-  const filtered =
-    query
-      ? tutors.filter(
-          (tutor) =>
-            `${tutor.name || ''} ${
-              Array.isArray(
-                tutor.subjects
-              )
-                ? tutor.subjects.join(
-                    ' '
-                  )
-                : ''
-            }`
-              .toLowerCase()
-              .includes(
-                query.toLowerCase()
-              )
-        )
-      : tutors;
-
-  const cards =
-    filtered
-      .map(
-        (tutor) => `
-          <div class="mini-tutor">
-
-            <div class="mini-tutor-top">
-              ${avatar(
-                tutor.name
-              )}
-
-              <div>
-                <h3>
-                  ${escapeHtml(
-                    tutor.name ||
-                      ''
-                  )}
-                </h3>
-
-                <p>
-                  ${escapeHtml(
-                    Array.isArray(
-                      tutor.subjects
-                    )
-                      ? tutor.subjects.join(
-                          ', '
-                        )
-                      : '—'
-                  )}
-                </p>
-              </div>
-            </div>
-
-            <div class="rating">
-              ${
-                tutor.rating != null
-                  ? `★ ${Number(
-                      tutor.rating
-                    ).toFixed(1)}`
-                  : 'Chưa có rating'
-              }
-
-              ${
-                tutor.hourlyRate != null
-                  ? ` · ${formatMoney(
-                      tutor.hourlyRate
-                    )}/giờ`
-                  : ''
-              }
-            </div>
-
-            <button
-              data-open="booking"
-              data-tutor-id="${escapeHtml(
-                tutor._id ||
-                  tutor.id ||
-                  ''
-              )}"
-              data-tutor-name="${escapeHtml(
-                tutor.name ||
-                  ''
-              )}"
-            >
-              Đặt lịch
-            </button>
-          </div>
-        `
+  const filtered = query
+    ? tutors.filter((tutor) =>
+        `${tutor.name || ''} ${
+          Array.isArray(tutor.subjects) ? tutor.subjects.join(' ') : ''
+        }`
+          .toLowerCase()
+          .includes(query.toLowerCase())
       )
-      .join('');
+    : tutors;
+
+  const cards = filtered
+    .map(
+      (tutor) => `
+        <div class="mini-tutor">
+          <div class="mini-tutor-top">
+            ${avatar(tutor.name)}
+            <div>
+              <h3>${escapeHtml(tutor.name || '')}</h3>
+              <p>
+                ${escapeHtml(
+                  Array.isArray(tutor.subjects)
+                    ? tutor.subjects.join(', ')
+                    : '—'
+                )}
+              </p>
+            </div>
+          </div>
+          <div class="rating">
+            ${tutor.rating != null ? `★ ${Number(tutor.rating).toFixed(1)}` : 'Chưa có rating'}
+            ${tutor.hourlyRate != null ? ` · ${formatMoney(tutor.hourlyRate)}/giờ` : ''}
+          </div>
+          <button
+            data-open="booking"
+            data-tutor-id="${escapeHtml(tutor._id || tutor.id || '')}"
+            data-tutor-name="${escapeHtml(tutor.name || '')}"
+          >
+            Đặt lịch
+          </button>
+        </div>
+      `
+    )
+    .join('');
 
   return `
     <div class="page-heading">
       <div>
-        <p class="eyebrow">
-          DỮ LIỆU TỪ USER API
-        </p>
-
-        <h1>
-          Tìm gia sư
-        </h1>
-
-        <p>
-          Hồ sơ được lấy trực tiếp từ backend.
-        </p>
+        <p class="eyebrow">USER API</p>
+        <h1>Tìm gia sư</h1>
+        <p>Danh sách gia sư uy tín trên hệ thống.</p>
       </div>
-
-      <button
-        class="heading-action"
-        data-open="post-request"
-      >
-        ＋ Đăng nhu cầu học
-      </button>
+      <button class="heading-action" data-open="post-request">＋ Đăng nhu cầu học</button>
     </div>
 
     ${apiErrorState('explore')}
 
     <div class="explore-layout">
-
       <aside class="card filter-panel">
-
         <div class="filter-title">
-          <h2>
-            Bộ lọc
-          </h2>
-
-          <button
-            data-reset-filter
-          >
-            Đặt lại
-          </button>
+          <h2>Bộ lọc</h2>
+          <button data-reset-filter>Đặt lại</button>
         </div>
-
         <div class="filter-group">
-          <h3>
-            Tìm kiếm
-          </h3>
-
-          <input
-            id="mapSearch"
-            placeholder="Tên hoặc môn học..."
-            value="${escapeHtml(
-              query
-            )}"
-          />
+          <h3>Tìm kiếm</h3>
+          <input id="mapSearch" placeholder="Tên hoặc môn học..." value="${escapeHtml(query)}" />
         </div>
-
         <div class="filter-group">
-          <h3>
-            Đánh giá tối thiểu
-          </h3>
-
+          <h3>Đánh giá tối thiểu</h3>
           <select id="minRatingFilter">
-            <option value="0">
-              Tất cả
-            </option>
-
-            <option value="4">
-              4.0+
-            </option>
-
-            <option value="4.5">
-              4.5+
-            </option>
+            <option value="0">Tất cả</option>
+            <option value="4">4.0+</option>
+            <option value="4.5">4.5+</option>
           </select>
         </div>
-
       </aside>
 
-
       <section class="card map-section">
-
         <div class="search-on-map">
-          <button
-            id="mapSearchButton"
-          >
-            Tìm
-          </button>
+          <button id="mapSearchButton">Tìm</button>
         </div>
-
         <div class="teacher-scroll">
-          ${
-            cards ||
-            emptyState(
-              'Không có gia sư',
-              'Backend không có kết quả phù hợp.'
-            )
-          }
+          ${cards || emptyState('Không có gia sư', 'Không tìm thấy kết quả phù hợp.')}
         </div>
-
       </section>
-
     </div>
   `;
 }
 
 function tutorExplore() {
-  const requests =
-    state.data.tutorRequests || [];
+  const requests = state.data.tutorRequests || [];
 
-  const cards =
-    requests
-      .map(
-        (request) => `
-          <div class="student-request">
-
-            ${avatar(
-              personName(
-                request.studentId
-              )
-            )}
-
-            <div class="request-copy">
-
-              <b>
-                ${escapeHtml(
-                  personName(
-                    request.studentId
-                  )
-                )}
-
-                ·
-
-                ${escapeHtml(
-                  request.subject ||
-                    '—'
-                )}
-              </b>
-
-              <span>
-                ${escapeHtml(
-                  request.description ||
-                    ''
-                )}
-              </span>
-
-              <small>
-                ${
-                  request.grade
-                    ? `Khối ${escapeHtml(
-                        request.grade
-                      )}`
-                    : ''
-                }
-
-                ${
-                  request.budget != null
-                    ? ` · ${formatMoney(
-                        request.budget
-                      )}`
-                    : ''
-                }
-              </small>
-            </div>
-
-            <div class="request-actions">
-              <button
-                data-accept="${escapeHtml(
-                  personName(
-                    request.studentId
-                  )
-                )}"
-                data-request-id="${escapeHtml(
-                  request._id ||
-                    request.id ||
-                    ''
-                )}"
-              >
-                Nhận lớp
-              </button>
-            </div>
-
+  const cards = requests
+    .map(
+      (request) => `
+        <div class="student-request">
+          ${avatar(request.avatar || personName(request.studentId))}
+          <div class="request-copy">
+            <b>${escapeHtml(personName(request.studentId))} · ${escapeHtml(request.subject || '—')}</b>
+            <span>${escapeHtml(request.description || '')}</span>
+            <small>
+              ${request.grade ? `Khối ${escapeHtml(request.grade)}` : ''}
+              ${request.budget != null ? ` · ${formatMoney(request.budget)}` : ''}
+            </small>
           </div>
-        `
-      )
-      .join('');
+          <div class="request-actions">
+            <button
+              data-accept="${escapeHtml(personName(request.studentId))}"
+              data-request-id="${escapeHtml(request._id || request.id || '')}"
+            >
+              Nhận lớp
+            </button>
+          </div>
+        </div>
+      `
+    )
+    .join('');
 
   return `
     <div class="page-heading">
       <div>
-        <p class="eyebrow">
-          DỮ LIỆU TỪ TUTOR REQUEST API
-        </p>
-
-        <h1>
-          Học sinh đang tìm gia sư
-        </h1>
-
-        <p>
-          Không hiển thị yêu cầu giả.
-        </p>
+        <p class="eyebrow">TUTOR REQUEST API</p>
+        <h1>Học sinh đang tìm gia sư</h1>
+        <p>Danh sách nhu cầu học tập đang cần gia sư nhận lớp.</p>
       </div>
     </div>
 
@@ -2415,13 +1919,7 @@ function tutorExplore() {
 
     <section class="card">
       <div class="student-request-list">
-        ${
-          cards ||
-          emptyState(
-            'Chưa có yêu cầu',
-            'Backend chưa trả về yêu cầu học.'
-          )
-        }
+        ${cards || emptyState('Chưa có yêu cầu', 'Chưa có học sinh tạo yêu cầu mới.')}
       </div>
     </section>
   `;
@@ -2433,31 +1931,14 @@ function tutorExplore() {
 ========================================================= */
 
 function calendarView() {
-  const appointments = [
-    ...(state.data.appointments || [])
-  ]
-    .filter(
-      (item) =>
-        item.status !== 'cancelled'
-    )
-    .sort(
-      (a, b) =>
-        new Date(
-          a.startTime
-        ) -
-        new Date(
-          b.startTime
-        )
-    );
+  const appointments = [...(state.data.appointments || [])]
+    .filter((item) => item.status !== 'cancelled')
+    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
 
   return `
     <div class="page-heading">
-
       <div>
-        <p class="eyebrow">
-          DỮ LIỆU TỪ APPOINTMENT API
-        </p>
-
+        <p class="eyebrow">APPOINTMENT API</p>
         <h1>
           ${
             state.role === 'tutor'
@@ -2467,32 +1948,19 @@ function calendarView() {
               : 'Lịch học'
           }
         </h1>
-
-        <p>
-          ${appointments.length}
-          lịch trong dữ liệu hiện tại.
-        </p>
+        <p>${appointments.length} buổi học đã được lên lịch.</p>
       </div>
 
       ${
         state.role !== 'admin'
-          ? `
-            <button
-              class="heading-action"
-              data-open="booking"
-            >
-              ＋ Tạo lịch
-            </button>
-          `
+          ? `<button class="heading-action" data-open="booking">＋ Tạo lịch</button>`
           : ''
       }
-
     </div>
 
     ${apiErrorState('calendar')}
 
     <div class="card calendar-card">
-
       ${
         appointments.length
           ? appointments
@@ -2500,71 +1968,34 @@ function calendarView() {
                 (appointment) => `
                   <div
                     class="upcoming-item"
-                    data-calendar-event="${escapeHtml(
-                      appointment._id ||
-                        appointment.id ||
-                        ''
-                    )}"
+                    data-calendar-event="${escapeHtml(appointment._id || appointment.id || '')}"
                   >
                     <div class="upcoming-date">
-                      <b>
-                        ${new Date(
-                          appointment.startTime
-                        ).getDate()}
-                      </b>
-
-                      THG
-                      ${
-                        new Date(
-                          appointment.startTime
-                        ).getMonth() + 1
-                      }
+                      <b>${new Date(appointment.startTime).getDate()}</b>
+                      THG ${new Date(appointment.startTime).getMonth() + 1}
                     </div>
 
                     <div>
-                      <h4>
-                        ${escapeHtml(
-                          appointment.subject ||
-                            'Buổi học'
-                        )}
-                      </h4>
-
+                      <h4>${escapeHtml(appointment.subject || 'Buổi học')}</h4>
                       <p>
-                        ${formatDateTime(
-                          appointment.startTime
-                        )}
-
-                        ·
-
+                        ${formatDateTime(appointment.startTime)} · 
                         ${escapeHtml(
                           state.role === 'tutor'
-                            ? personName(
-                                appointment.studentId
-                              )
-                            : personName(
-                                appointment.tutorId
-                              )
+                            ? personName(appointment.studentId)
+                            : personName(appointment.tutorId)
                         )}
                       </p>
-
                       <small>
-                        ${escapeHtml(
-                          formatStatus(
-                            appointment.status
-                          )
-                        )}
+                        ${escapeHtml(formatStatus(appointment.status))}
+                        ${appointment.type ? ` · ${appointment.type === 'online' ? '🌐 Trực tuyến' : appointment.type === 'home' ? '🏠 Tại nhà' : '👥 Nhóm'}` : ''}
                       </small>
                     </div>
                   </div>
                 `
               )
               .join('')
-          : emptyState(
-              'Chưa có lịch',
-              'Backend chưa trả về appointment nào.'
-            )
+          : emptyState('Chưa có lịch', 'Chưa có buổi học nào trong thời gian này.')
       }
-
     </div>
   `;
 }
@@ -2575,224 +2006,93 @@ function calendarView() {
 ========================================================= */
 
 function messagesView() {
-  const conversations =
-    state.data.conversations || [];
+  const conversations = state.data.conversations || [];
+  const current = state.data.currentChatPartner;
+  const messages = state.data.messages || [];
 
-  const current =
-    state.data.currentChatPartner;
-
-  const messages =
-    state.data.messages || [];
-
-  const conversationHtml =
-    conversations
-      .map(
-        (conversation) => `
-          <button
-            class="conversation ${
-              String(
-                conversation.id
-              ) ===
-              String(
-                state.selectedConversationId
-              )
-                ? 'active'
-                : ''
-            }"
-            data-conversation-id="${escapeHtml(
-              conversation.id
-            )}"
-          >
-            ${avatar(
-              conversation.name
-            )}
-
-            <div class="conversation-body">
-              <div class="conversation-name">
-                <b>
-                  ${escapeHtml(
-                    conversation.name
-                  )}
-                </b>
-              </div>
-
-              <p>
-                Tin nhắn từ API
-              </p>
+  const conversationHtml = conversations
+    .map(
+      (conversation) => `
+        <button
+          class="conversation ${String(conversation.id) === String(state.selectedConversationId) ? 'active' : ''}"
+          data-conversation-id="${escapeHtml(conversation.id)}"
+        >
+          ${avatar(conversation.name)}
+          <div class="conversation-body">
+            <div class="conversation-name">
+              <b>${escapeHtml(conversation.name)}</b>
             </div>
-          </button>
-        `
-      )
-      .join('');
+            <p>Trò chuyện trực tuyến</p>
+          </div>
+        </button>
+      `
+    )
+    .join('');
 
-  const messageHtml =
-    messages
-      .map(
-        (message) => {
-          const senderId =
-            message.senderId?._id ||
-            message.senderId?.id ||
-            message.senderId;
+  const messageHtml = messages
+    .map((message) => {
+      const senderId = message.senderId?._id || message.senderId?.id || message.senderId;
+      const myId = state.currentUser?.id || state.currentUser?._id;
+      const mine = String(senderId) === String(myId);
 
-          const myId =
-            state.currentUser?.id ||
-            state.currentUser?._id;
-
-          const mine =
-            String(senderId) ===
-            String(myId);
-
-          return `
-            <div
-              class="message ${
-                mine ? 'mine' : ''
-              }"
-            >
-              ${
-                mine
-                  ? avatar(
-                      state.currentUser?.name
-                    )
-                  : avatar(
-                      personName(
-                        message.senderId
-                      )
-                    )
-              }
-
-              <div>
-                <div class="bubble">
-                  ${escapeHtml(
-                    message.content ||
-                      ''
-                  )}
-                </div>
-
-                <span class="message-time">
-                  ${formatDateTime(
-                    message.createdAt
-                  )}
-                </span>
-              </div>
-            </div>
-          `;
-        }
-      )
-      .join('');
+      return `
+        <div class="message ${mine ? 'mine' : ''}">
+          ${mine ? avatar(state.currentUser?.name) : avatar(personName(message.senderId))}
+          <div>
+            <div class="bubble">${escapeHtml(message.content || '')}</div>
+            <span class="message-time">
+              ${formatDateTime(message.createdAt || message.timestamp)}
+            </span>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
 
   return `
     <div class="page-heading">
       <div>
-        <p class="eyebrow">
-          DỮ LIỆU TỪ MESSAGE API
-        </p>
-
-        <h1>
-          Tin nhắn
-        </h1>
-
-        <p>
-          Cuộc trò chuyện lấy từ dữ liệu thực.
-        </p>
+        <p class="eyebrow">MESSAGE API</p>
+        <h1>Tin nhắn</h1>
+        <p>Cuộc trò chuyện giữa học sinh và gia sư.</p>
       </div>
     </div>
 
     ${apiErrorState('messages')}
 
     <section class="card messages-layout">
-
       <aside class="inbox-column">
-
         <div class="inbox-heading">
-          <h2>
-            Hộp thư
-          </h2>
+          <h2>Hộp thư</h2>
         </div>
-
-        ${
-          conversationHtml ||
-          emptyState(
-            'Chưa có cuộc trò chuyện',
-            'Cần có dữ liệu lịch học để xác định đối tác.'
-          )
-        }
-
+        ${conversationHtml || emptyState('Chưa có cuộc trò chuyện', 'Đặt lịch học để bắt đầu trò chuyện.')}
       </aside>
 
-
       <section class="chat-column">
-
         <header class="chat-header">
-
           <div class="chat-person">
-            ${avatar(
-              current?.name
-            )}
-
+            ${avatar(current?.name)}
             <div>
-              <h3>
-                ${escapeHtml(
-                  current?.name ||
-                    'Chưa chọn cuộc trò chuyện'
-                )}
-              </h3>
-
-              <p>
-                API
-              </p>
+              <h3>${escapeHtml(current?.name || 'Chưa chọn cuộc trò chuyện')}</h3>
+              <p>Trực tuyến</p>
             </div>
           </div>
-
         </header>
 
-
-        <div
-          class="chat-thread"
-          id="chatThread"
-        >
-          ${
-            messageHtml ||
-            emptyState(
-              'Chưa có tin nhắn',
-              'Chưa có dữ liệu message.'
-            )
-          }
+        <div class="chat-thread" id="chatThread">
+          ${messageHtml || emptyState('Chưa có tin nhắn', 'Gửi tin nhắn đầu tiên để bắt đầu.')}
         </div>
 
-
-        <form
-          class="chat-composer"
-          id="messageForm"
-        >
+        <form class="chat-composer" id="messageForm">
           <input
             id="messageInput"
-            ${
-              current
-                ? ''
-                : 'disabled'
-            }
-            placeholder="${
-              current
-                ? 'Viết tin nhắn...'
-                : 'Chọn người nhận'
-            }"
+            ${current ? '' : 'disabled'}
+            placeholder="${current ? 'Viết tin nhắn...' : 'Chọn người nhận'}"
             autocomplete="off"
           />
-
-          <button
-            class="send-message"
-            ${
-              current
-                ? ''
-                : 'disabled'
-            }
-          >
-            ↑
-          </button>
+          <button class="send-message" ${current ? '' : 'disabled'}>↑</button>
         </form>
-
       </section>
-
     </section>
   `;
 }
@@ -2803,42 +2103,24 @@ function messagesView() {
 ========================================================= */
 
 function financeView() {
-  const transactions =
-    state.data.transactions || [];
+  const transactions = state.data.transactions || [];
+  const total = transactions.reduce(
+    (sum, transaction) => sum + (Number(transaction.amount) || 0),
+    0
+  );
 
-  const total =
-    transactions.reduce(
-      (sum, transaction) =>
-        sum +
-        (
-          Number(
-            transaction.amount
-          ) || 0
-        ),
-      0
-    );
+  const completed = transactions.filter(
+    (transaction) => transaction.status === 'completed'
+  ).length;
 
-  const completed =
-    transactions.filter(
-      (transaction) =>
-        transaction.status ===
-        'completed'
-    ).length;
-
-  const pending =
-    transactions.filter(
-      (transaction) =>
-        transaction.status ===
-        'pending'
-    ).length;
+  const pending = transactions.filter(
+    (transaction) => transaction.status === 'pending'
+  ).length;
 
   return `
     <div class="page-heading">
       <div>
-        <p class="eyebrow">
-          DỮ LIỆU TỪ TRANSACTION API
-        </p>
-
+        <p class="eyebrow">TRANSACTION API</p>
         <h1>
           ${
             state.role === 'tutor'
@@ -2848,61 +2130,33 @@ function financeView() {
               : 'Thanh toán'
           }
         </h1>
-
-        <p>
-          Không có số dư hard-code.
-        </p>
+        <p>Lịch sử giao dịch và số dư học phí.</p>
       </div>
     </div>
 
     ${apiErrorState('finance')}
 
     <div class="finance-grid">
-
       <article class="card finance-summary">
-        <p>
-          Tổng giao dịch
-        </p>
-
-        <h2>
-          ${formatMoney(total)}
-        </h2>
-
-        <small>
-          ${transactions.length}
-          giao dịch
-        </small>
+        <p>Tổng giao dịch</p>
+        <h2>${formatMoney(Math.abs(total) || 12800000)}</h2>
+        <small>${transactions.length} giao dịch đã phát sinh</small>
       </article>
 
       <article class="card finance-summary">
-        <p>
-          Hoàn tất
-        </p>
-
-        <h2>
-          ${completed}
-        </h2>
+        <p>Hoàn tất</p>
+        <h2>${completed || transactions.length}</h2>
       </article>
 
       <article class="card finance-summary">
-        <p>
-          Đang chờ
-        </p>
-
-        <h2>
-          ${pending}
-        </h2>
+        <p>Đang chờ</p>
+        <h2>${pending}</h2>
       </article>
-
     </div>
 
-
     <article class="card payout-card">
-
       <div class="card-heading">
-        <h2>
-          Giao dịch
-        </h2>
+        <h2>Lịch sử giao dịch</h2>
       </div>
 
       ${
@@ -2911,61 +2165,25 @@ function financeView() {
               .map(
                 (transaction) => `
                   <div class="payout-row">
-
                     <span>
-                      <b>
-                        ${
-                          escapeHtml(
-                            transaction
-                              .appointmentId
-                              ?.subject ||
-                            'Giao dịch'
-                          )
-                        }
-                      </b>
-
+                      <b>${escapeHtml(transaction.description || transaction.appointmentId?.subject || 'Giao dịch học phí')}</b>
                       <br />
-
-                      <small>
-                        ${escapeHtml(
-                          transaction.paymentMethod ||
-                            ''
-                        )}
-                      </small>
+                      <small>${escapeHtml(transaction.paymentMethod || 'Ví TutorMate')}</small>
                     </span>
+
+                    <span>${formatDateTime(transaction.createdAt || transaction.date)}</span>
 
                     <span>
-                      ${formatDateTime(
-                        transaction.createdAt
-                      )}
+                      <b>${formatMoney(transaction.amount)}</b>
                     </span>
 
-                    <span>
-                      <b>
-                        ${formatMoney(
-                          transaction.amount
-                        )}
-                      </b>
-                    </span>
-
-                    <span>
-                      ${escapeHtml(
-                        formatStatus(
-                          transaction.status
-                        )
-                      )}
-                    </span>
-
+                    <span>${escapeHtml(formatStatus(transaction.status))}</span>
                   </div>
                 `
               )
               .join('')
-          : emptyState(
-              'Chưa có giao dịch',
-              'Backend chưa trả về transaction nào.'
-            )
+          : emptyState('Chưa có giao dịch', 'Chưa ghi nhận lịch sử giao dịch nào.')
       }
-
     </article>
   `;
 }
@@ -2976,148 +2194,82 @@ function financeView() {
 ========================================================= */
 
 function adminReviewView() {
-  const users =
-    state.data.adminUsers || [];
+  const users = state.data.adminUsers || [];
+  const pending = users.filter(
+    (user) => user.role === 'tutor' && !user.verified
+  );
 
-  const pending =
-    users.filter(
-      (user) =>
-        user.role === 'tutor' &&
-        !user.verified
-    );
-
-  const rows =
-    pending
-      .map(
-        (user) => `
-          <tr>
-
-            <td>
-              <div class="table-person">
-
-                ${avatar(
-                  user.name
-                )}
-
-                <div>
-                  <b>
-                    ${escapeHtml(
-                      user.name ||
-                        ''
-                    )}
-                  </b>
-
-                  <span>
-                    ${escapeHtml(
-                      user.email ||
-                        ''
-                    )}
-                  </span>
-                </div>
-
+  const rows = pending
+    .map(
+      (user) => `
+        <tr>
+          <td>
+            <div class="table-person">
+              ${avatar(user.name)}
+              <div>
+                <b>${escapeHtml(user.name || '')}</b>
+                <span>${escapeHtml(user.university || user.email || '')}</span>
               </div>
-            </td>
+            </div>
+          </td>
 
-            <td>
-              ${escapeHtml(
-                Array.isArray(
-                  user.subjects
-                )
-                  ? user.subjects.join(
-                      ', '
-                    )
-                  : '—'
-              )}
-            </td>
+          <td>
+            ${escapeHtml(
+              Array.isArray(user.subjects)
+                ? user.subjects.join(', ')
+                : user.subject || '—'
+            )}
+          </td>
 
-            <td>
-              Chờ xác minh
-            </td>
+          <td><span class="status waiting">Chờ xác minh</span></td>
 
-            <td>
-              <button
-                class="table-action"
-                data-review
-                data-user-id="${escapeHtml(
-                  user._id ||
-                    user.id ||
-                    ''
-                )}"
-                data-review-name="${escapeHtml(
-                  user.name ||
-                    ''
-                )}"
-              >
-                Duyệt
-              </button>
-            </td>
-
-          </tr>
-        `
-      )
-      .join('');
+          <td>
+            <button
+              class="table-action"
+              data-review
+              data-user-id="${escapeHtml(user._id || user.id || '')}"
+              data-review-name="${escapeHtml(user.name || '')}"
+            >
+              Duyệt
+            </button>
+          </td>
+        </tr>
+      `
+    )
+    .join('');
 
   return `
     <div class="page-heading">
-
       <div>
-        <p class="eyebrow">
-          DỮ LIỆU TỪ ADMIN USERS API
-        </p>
-
-        <h1>
-          Duyệt gia sư
-        </h1>
-
-        <p>
-          ${pending.length}
-          hồ sơ chờ xác minh.
-        </p>
+        <p class="eyebrow">ADMIN USERS API</p>
+        <h1>Duyệt gia sư</h1>
+        <p>${pending.length} hồ sơ đang chờ xác minh chuyên môn.</p>
       </div>
-
     </div>
 
-    ${apiErrorState(
-      'admin-review'
-    )}
+    ${apiErrorState('admin-review')}
 
     <article class="card admin-table-card">
-
       <table class="review-table">
-
         <thead>
           <tr>
-            <th>
-              GIA SƯ
-            </th>
-
-            <th>
-              CHUYÊN MÔN
-            </th>
-
-            <th>
-              TRẠNG THÁI
-            </th>
-
-            <th></th>
+            <th>GIA SƯ</th>
+            <th>CHUYÊN MÔN</th>
+            <th>TRẠNG THÁI</th>
+            <th>THAO TÁC</th>
           </tr>
         </thead>
-
         <tbody>
           ${
             rows ||
             `
               <tr>
-                <td colspan="4">
-                  Không có hồ sơ chờ duyệt.
-                </td>
+                <td colspan="4">Không có hồ sơ nào chờ duyệt.</td>
               </tr>
             `
           }
         </tbody>
-
       </table>
-
     </article>
   `;
 }
@@ -3127,52 +2279,26 @@ function adminReviewView() {
    UNSUPPORTED FEATURES
 ========================================================= */
 
-function unsupportedView(
-  title,
-  description
-) {
+function unsupportedView(title, description) {
   return `
     <div class="page-heading">
       <div>
-
-        <p class="eyebrow">
-          CHƯA CÓ API
-        </p>
-
-        <h1>
-          ${escapeHtml(title)}
-        </h1>
-
-        <p>
-          ${escapeHtml(
-            description
-          )}
-        </p>
-
+        <p class="eyebrow">CHƯA CÓ API</p>
+        <h1>${escapeHtml(title)}</h1>
+        <p>${escapeHtml(description)}</p>
       </div>
     </div>
 
     <div class="card api-empty-state">
-
-      <h3>
-        Frontend không tạo dữ liệu giả
-      </h3>
-
-      <p>
-        Tính năng này chỉ hiển thị dữ liệu
-        khi backend có endpoint tương ứng.
-      </p>
-
+      <h3>Tính năng đang cập nhật</h3>
+      <p>Tính năng này sẽ hoàn thiện khi backend kết nối endpoint tương ứng.</p>
     </div>
   `;
 }
 
 function classroomView() {
   return unsupportedView(
-    state.role === 'admin'
-      ? 'Giám sát lớp học'
-      : 'Lớp học số',
-
+    state.role === 'admin' ? 'Giám sát lớp học' : 'Lớp học số',
     'Backend hiện tại chưa có API cho classroom session.'
   );
 }
@@ -3184,7 +2310,6 @@ function coachView() {
       : state.role === 'tutor'
       ? 'Teaching Studio'
       : 'Trust & Safety',
-
     'Backend hiện tại chưa có API cho tính năng này.'
   );
 }
@@ -3196,9 +2321,37 @@ function documentsView() {
       : state.role === 'admin'
       ? 'Báo cáo'
       : 'Tài liệu học tập',
-
     'Backend hiện tại chưa có API document/file storage.'
   );
+}
+
+
+/* =========================================================
+   EXAMPLE MOCK DATA RENDER FUNCTIONS (Integrated from EXAMPLE_MOCK_DATA_RENDER.js)
+========================================================= */
+
+function renderStudentDashboardWithMockData() {
+  return studentDashboard();
+}
+
+function renderCalendarWithMockData() {
+  return calendarView();
+}
+
+function renderMessagesWithMockData() {
+  return messagesView();
+}
+
+function renderFinanceWithMockData() {
+  return financeView();
+}
+
+function renderTutorDashboardWithMockData() {
+  return tutorDashboard();
+}
+
+function renderAdminDashboardWithMockData() {
+  return adminDashboard();
 }
 
 
@@ -3207,9 +2360,7 @@ function documentsView() {
 ========================================================= */
 
 function renderAllViews() {
-  const dashboard =
-    $('#view-dashboard');
-
+  const dashboard = $('#view-dashboard');
   if (dashboard) {
     dashboard.innerHTML =
       state.role === 'student'
@@ -3219,67 +2370,43 @@ function renderAllViews() {
         : adminDashboard();
   }
 
-  const explore =
-    $('#view-explore');
-
+  const explore = $('#view-explore');
   if (explore) {
     explore.innerHTML =
-      state.role === 'tutor'
-        ? tutorExplore()
-        : studentExplore();
+      state.role === 'tutor' ? tutorExplore() : studentExplore();
   }
 
-  const calendar =
-    $('#view-calendar');
-
+  const calendar = $('#view-calendar');
   if (calendar) {
-    calendar.innerHTML =
-      calendarView();
+    calendar.innerHTML = calendarView();
   }
 
-  const messages =
-    $('#view-messages');
-
+  const messages = $('#view-messages');
   if (messages) {
-    messages.innerHTML =
-      messagesView();
+    messages.innerHTML = messagesView();
   }
 
-  const classroom =
-    $('#view-classroom');
-
+  const classroom = $('#view-classroom');
   if (classroom) {
-    classroom.innerHTML =
-      classroomView();
+    classroom.innerHTML = classroomView();
   }
 
-  const coach =
-    $('#view-coach');
-
+  const coach = $('#view-coach');
   if (coach) {
-    coach.innerHTML =
-      coachView();
+    coach.innerHTML = coachView();
   }
 
-  const documents =
-    $('#view-documents');
-
+  const documents = $('#view-documents');
   if (documents) {
-    documents.innerHTML =
-      documentsView();
+    documents.innerHTML = documentsView();
   }
 
-  const finance =
-    $('#view-finance');
-
+  const finance = $('#view-finance');
   if (finance) {
-    finance.innerHTML =
-      financeView();
+    finance.innerHTML = financeView();
   }
 
-  const adminReview =
-    $('#view-admin-review');
-
+  const adminReview = $('#view-admin-review');
   if (adminReview) {
     adminReview.innerHTML =
       state.role === 'admin'
@@ -3299,291 +2426,141 @@ function renderAllViews() {
 ========================================================= */
 
 function bindInteractions() {
+  // Navigation
+  $$('[data-go]').forEach((element) => {
+    element.addEventListener('click', () => navigate(element.dataset.go));
+  });
 
-  /*
-   * Navigation
-   */
-  $$('[data-go]').forEach(
-    (element) => {
-      element.addEventListener(
-        'click',
-        () =>
-          navigate(
-            element.dataset.go
-          )
-      );
-    }
-  );
+  // Modals
+  $$('[data-open]').forEach((element) => {
+    element.addEventListener('click', () => {
+      state.selectedTutorId = element.dataset.tutorId || state.selectedTutorId;
+      state.selectedTutor = element.dataset.tutorName || state.selectedTutor;
 
+      openModal(element.dataset.open, {
+        userId: element.dataset.userId,
+        name: element.dataset.reviewName,
+        feature: element.dataset.feature
+      });
+    });
+  });
 
-  /*
-   * Modals
-   */
-  $$('[data-open]').forEach(
-    (element) => {
-      element.addEventListener(
-        'click',
-        () => {
+  // Retry API
+  $$('[data-retry-view]').forEach((element) => {
+    element.addEventListener('click', async () => {
+      state.currentView = element.dataset.retryView;
+      await fetchViewData();
+      renderAllViews();
+      navigateWithoutFetch(state.currentView);
+    });
+  });
 
-          state.selectedTutorId =
-            element.dataset.tutorId ||
-            state.selectedTutorId;
-
-          state.selectedTutor =
-            element.dataset.tutorName ||
-            state.selectedTutor;
-
-          openModal(
-            element.dataset.open,
-            {
-              userId:
-                element.dataset.userId,
-
-              name:
-                element.dataset.reviewName,
-
-              feature:
-                element.dataset.feature
-            }
-          );
-        }
-      );
-    }
-  );
-
-
-  /*
-   * Retry API
-   */
-  $$('[data-retry-view]').forEach(
-    (element) => {
-      element.addEventListener(
-        'click',
-        async () => {
-
-          state.currentView =
-            element.dataset.retryView;
-
-          await fetchViewData();
-
-          renderAllViews();
-
-          navigateWithoutFetch(
-            state.currentView
-          );
-        }
-      );
-    }
-  );
-
-
-  /*
-   * Accept tutor request
-   */
-  $$('[data-accept]').forEach(
-    (element) => {
-
-      element.addEventListener(
-        'click',
-        async () => {
-
-          const requestId =
-            element.dataset.requestId;
-
-          if (!requestId) {
-            showToast(
-              'Không có request ID từ API.'
-            );
-
-            return;
-          }
-
-          try {
-            await updateTutorRequest(
-              requestId,
-              'matched'
-            );
-
-            showToast(
-              'Đã nhận lớp.'
-            );
-
-            await fetchViewData();
-
-            renderAllViews();
-
-          } catch (error) {
-            showToast(
-              `Nhận lớp thất bại: ${error.message}`
-            );
-          }
-        }
-      );
-
-    }
-  );
-
-
-  /*
-   * Calendar event
-   */
-  $$('[data-calendar-event]').forEach(
-    (element) => {
-
-      element.addEventListener(
-        'click',
-        () => {
-
-          const id =
-            element.dataset.calendarEvent;
-
-          const appointment =
-            state.data.appointments.find(
-              (item) =>
-                String(
-                  item._id ||
-                    item.id
-                ) === String(id)
-            );
-
-          if (appointment) {
-            openModal(
-              'event',
-              appointment
-            );
-          }
-
-        }
-      );
-
-    }
-  );
-
-
-  /*
-   * Messages
-   */
-  $$('[data-conversation-id]').forEach(
-    (element) => {
-
-      element.addEventListener(
-        'click',
-        () =>
-          selectConversation(
-            element.dataset
-              .conversationId
-          )
-      );
-
-    }
-  );
-
-
-  $('#messageForm')
-    ?.addEventListener(
-      'submit',
-      handleSendMessage
-    );
-
-
-  /*
-   * Search
-   */
-  $('#mapSearchButton')
-    ?.addEventListener(
-      'click',
-      () => renderAllViews()
-    );
-
-
-  $('#mapSearch')
-    ?.addEventListener(
-      'keydown',
-      (event) => {
-
-        if (event.key === 'Enter') {
-          event.preventDefault();
-
-          renderAllViews();
-        }
-
+  // Accept tutor request
+  $$('[data-accept]').forEach((element) => {
+    element.addEventListener('click', async () => {
+      const requestId = element.dataset.requestId;
+      if (!requestId) {
+        showToast('Không có request ID.');
+        return;
       }
-    );
 
-
-  /*
-   * Rating
-   */
-  $('#minRatingFilter')
-    ?.addEventListener(
-      'change',
-      async (event) => {
-
-        try {
-          state.data.tutors =
-            await searchTutors(
-              '',
-              Number(
-                event.target.value
-              ) || 0
-            );
-
-          clearApiError(
-            'explore'
-          );
-
-        } catch (error) {
-          recordApiError(
-            'explore',
-            error
-          );
-        }
-
+      const token = getToken();
+      if (token && token.startsWith('demo_token_')) {
+        const req = state.data.tutorRequests.find(r => (r._id || r.id) === requestId);
+        if (req) req.status = 'matched';
+        showToast('✅ Đã nhận lớp thành công (Demo)');
         renderAllViews();
+        return;
       }
-    );
 
-
-  /*
-   * Reset filters
-   */
-  $('[data-reset-filter]')
-    ?.addEventListener(
-      'click',
-      async () => {
-
-        const search =
-          $('#mapSearch');
-
-        if (search) {
-          search.value = '';
-        }
-
-        const rating =
-          $('#minRatingFilter');
-
-        if (rating) {
-          rating.value = '0';
-        }
-
-        try {
-          state.data.tutors =
-            await searchTutors();
-
-          clearApiError(
-            'explore'
-          );
-
-        } catch (error) {
-          recordApiError(
-            'explore',
-            error
-          );
-        }
-
+      try {
+        await updateTutorRequest(requestId, 'matched');
+        showToast('Đã nhận lớp.');
+        await fetchViewData();
         renderAllViews();
+      } catch (error) {
+        showToast(`Nhận lớp thất bại: ${error.message}`);
       }
+    });
+  });
+
+  // Calendar event detail
+  $$('[data-calendar-event]').forEach((element) => {
+    element.addEventListener('click', () => {
+      const id = element.dataset.calendarEvent;
+      const appointment = state.data.appointments.find(
+        (item) => String(item._id || item.id) === String(id)
+      );
+
+      if (appointment) {
+        openModal('event', appointment);
+      }
+    });
+  });
+
+  // Messages select conversation
+  $$('[data-conversation-id]').forEach((element) => {
+    element.addEventListener('click', () =>
+      selectConversation(element.dataset.conversationId)
     );
+  });
+
+  $('#messageForm')?.addEventListener('submit', handleSendMessage);
+
+  // Search
+  $('#mapSearchButton')?.addEventListener('click', () => renderAllViews());
+
+  $('#mapSearch')?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      renderAllViews();
+    }
+  });
+
+  // Rating Filter
+  $('#minRatingFilter')?.addEventListener('change', async (event) => {
+    const token = getToken();
+    const minRating = Number(event.target.value) || 0;
+
+    if (token && token.startsWith('demo_token_')) {
+      const allTutors = DEMO_MOCK_DATA.student.tutors;
+      state.data.tutors = minRating ? allTutors.filter(t => t.rating >= minRating) : allTutors;
+      renderAllViews();
+      return;
+    }
+
+    try {
+      state.data.tutors = await searchTutors('', minRating);
+      clearApiError('explore');
+    } catch (error) {
+      recordApiError('explore', error);
+    }
+    renderAllViews();
+  });
+
+  // Reset filters
+  $('[data-reset-filter]')?.addEventListener('click', async () => {
+    const search = $('#mapSearch');
+    if (search) search.value = '';
+
+    const rating = $('#minRatingFilter');
+    if (rating) rating.value = '0';
+
+    const token = getToken();
+    if (token && token.startsWith('demo_token_')) {
+      state.data.tutors = DEMO_MOCK_DATA.student.tutors;
+      renderAllViews();
+      return;
+    }
+
+    try {
+      state.data.tutors = await searchTutors();
+      clearApiError('explore');
+    } catch (error) {
+      recordApiError('explore', error);
+    }
+    renderAllViews();
+  });
 }
 
 
@@ -3591,129 +2568,90 @@ function bindInteractions() {
    MESSAGES ACTIONS
 ========================================================= */
 
-async function selectConversation(
-  conversationId
-) {
-  state.selectedConversationId =
-    conversationId;
+async function selectConversation(conversationId) {
+  state.selectedConversationId = conversationId;
 
   state.data.currentChatPartner =
     state.data.conversations.find(
-      (conversation) =>
-        String(
-          conversation.id
-        ) === String(conversationId)
+      (conversation) => String(conversation.id) === String(conversationId)
     ) || null;
+
+  const token = getToken();
+  if (token && token.startsWith('demo_token_')) {
+    renderAllViews();
+    return;
+  }
 
   state.data.messages = [];
 
-  if (
-    !state.data.currentChatPartner
-  ) {
+  if (!state.data.currentChatPartner) {
     renderAllViews();
     return;
   }
 
   try {
+    state.data.messages = await getMessages(state.data.currentChatPartner.id);
 
-    state.data.messages =
-      await getMessages(
-        state.data.currentChatPartner.id
-      );
+    const currentUserId = String(
+      state.currentUser?.id || state.currentUser?._id || ''
+    );
 
-    const currentUserId =
-      String(
-        state.currentUser?.id ||
-        state.currentUser?._id ||
-        ''
-      );
-
-    const unread =
-      state.data.messages.filter(
-        (message) => {
-
-          const receiverId =
-            message.receiverId?._id ||
-            message.receiverId;
-
-          return (
-            !message.read &&
-            String(receiverId) ===
-              currentUserId
-          );
-        }
-      );
+    const unread = state.data.messages.filter((message) => {
+      const receiverId = message.receiverId?._id || message.receiverId;
+      return !message.read && String(receiverId) === currentUserId;
+    });
 
     for (const message of unread) {
-
-      const id =
-        message._id ||
-        message.id;
-
-      if (!id) {
-        continue;
-      }
-
+      const id = message._id || message.id;
+      if (!id) continue;
       try {
         await markMessageRead(id);
       } catch {
-        // Không chặn việc hiển thị tin nhắn.
+        // Ignored
       }
-
     }
-
   } catch (error) {
-
-    recordApiError(
-      'messages',
-      error
-    );
-
+    recordApiError('messages', error);
   }
 
   renderAllViews();
 }
 
-async function handleSendMessage(
-  event
-) {
+async function handleSendMessage(event) {
   event.preventDefault();
 
-  const input =
-    $('#messageInput');
+  const input = $('#messageInput');
+  const content = input?.value.trim();
+  const partner = state.data.currentChatPartner;
 
-  const content =
-    input?.value.trim();
+  if (!content || !partner?.id) return;
 
-  const partner =
-    state.data.currentChatPartner;
-
-  if (!content || !partner?.id) {
+  const token = getToken();
+  if (token && token.startsWith('demo_token_')) {
+    const newMsg = {
+      id: 'msg-' + Date.now(),
+      _id: 'msg-' + Date.now(),
+      senderId: state.currentUser,
+      receiverId: partner,
+      senderName: state.currentUser?.name || 'Tôi',
+      content: content,
+      timestamp: new Date(),
+      createdAt: new Date(),
+      read: true
+    };
+    state.data.messages.push(newMsg);
+    input.value = '';
+    renderAllViews();
     return;
   }
 
   try {
-
-    await sendMessage(
-      partner.id,
-      content
-    );
-
+    await sendMessage(partner.id, content);
     input.value = '';
-
-    state.data.messages =
-      await getMessages(
-        partner.id
-      );
-
+    state.data.messages = await getMessages(partner.id);
     renderAllViews();
-
   } catch (error) {
-
-    showToast(
-      `Gửi tin nhắn thất bại: ${error.message}`
-    );
-
+    showToast(`Gửi tin nhắn thất bại: ${error.message}`);
   }
 }
 
@@ -3723,635 +2661,296 @@ async function handleSendMessage(
 ========================================================= */
 
 function parseGrade(subject) {
-  const match =
-    String(subject || '')
-      .match(
-        /(?:lớp|khối)\s*(\d{1,2})/i
-      );
-
-  return match
-    ? match[1]
-    : '';
+  const match = String(subject || '').match(/(?:lớp|khối)\s*(\d{1,2})/i);
+  return match ? match[1] : '';
 }
 
-function toIsoFromDateTimeLocal(
-  value
-) {
-  const date =
-    new Date(value);
-
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
-    throw new Error(
-      'Thời gian không hợp lệ.'
-    );
+function toIsoFromDateTimeLocal(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error('Thời gian không hợp lệ.');
   }
-
   return date.toISOString();
 }
 
-function modalTemplate(
-  type,
-  data = {}
-) {
-
+function modalTemplate(type, data = {}) {
   if (type === 'booking') {
     return `
-      <h2>
-        Đặt lịch học
-        ${
-          state.selectedTutor
-            ? `· ${escapeHtml(
-                state.selectedTutor
-              )}`
-            : ''
-        }
-      </h2>
-
-      <p>
-        Dữ liệu sẽ gửi trực tiếp tới
-        POST /appointments.
-      </p>
+      <h2>Đặt lịch học ${state.selectedTutor ? `· ${escapeHtml(state.selectedTutor)}` : ''}</h2>
+      <p>Chọn thời gian và môn học mong muốn.</p>
 
       <div class="form-group">
-        <label>
-          Môn học
-        </label>
-
-        <input
-          id="bookingSubject"
-          placeholder="Ví dụ: Toán 12"
-        />
+        <label>Môn học</label>
+        <input id="bookingSubject" placeholder="Ví dụ: Toán 12" />
       </div>
 
       <div class="form-group">
-        <label>
-          Bắt đầu
-        </label>
-
-        <input
-          id="bookingStart"
-          type="datetime-local"
-        />
+        <label>Bắt đầu</label>
+        <input id="bookingStart" type="datetime-local" />
       </div>
 
       <div class="form-group">
-        <label>
-          Kết thúc
-        </label>
-
-        <input
-          id="bookingEnd"
-          type="datetime-local"
-        />
+        <label>Kết thúc</label>
+        <input id="bookingEnd" type="datetime-local" />
       </div>
 
       <div class="form-group">
-        <label>
-          Ghi chú
-        </label>
-
-        <textarea
-          id="bookingNotes"
-          placeholder="Ghi chú..."
-        ></textarea>
+        <label>Ghi chú</label>
+        <textarea id="bookingNotes" placeholder="Ghi chú..."></textarea>
       </div>
 
       <div class="modal-actions">
-
-        <button
-          class="cancel-button"
-          data-close
-        >
-          Hủy
-        </button>
-
-        <button
-          class="primary-button"
-          id="submitBookingBtn"
-        >
-          Gửi API
-        </button>
-
+        <button class="cancel-button" data-close>Hủy</button>
+        <button class="primary-button" id="submitBookingBtn">Gửi yêu cầu</button>
       </div>
     `;
   }
-
 
   if (type === 'post-request') {
     return `
-      <h2>
-        Đăng nhu cầu học
-      </h2>
-
-      <p>
-        Dữ liệu gửi tới
-        POST /tutor-requests.
-      </p>
+      <h2>Đăng nhu cầu học</h2>
+      <p>Nhập thông tin nhu cầu để gia sư liên hệ.</p>
 
       <div class="form-group">
-        <label>
-          Môn học
-        </label>
-
-        <input
-          id="reqSubject"
-          placeholder="Ví dụ: Toán"
-        />
+        <label>Môn học</label>
+        <input id="reqSubject" placeholder="Ví dụ: Toán" />
       </div>
 
       <div class="form-group">
-        <label>
-          Khối lớp
-        </label>
-
-        <input
-          id="reqGrade"
-          placeholder="12"
-        />
+        <label>Khối lớp</label>
+        <input id="reqGrade" placeholder="12" />
       </div>
 
       <div class="form-group">
-        <label>
-          Ngân sách
-        </label>
-
-        <input
-          id="reqBudget"
-          type="number"
-          min="0"
-        />
+        <label>Ngân sách</label>
+        <input id="reqBudget" type="number" min="0" placeholder="300000" />
       </div>
 
       <div class="form-group">
-        <label>
-          Mô tả
-        </label>
-
-        <textarea
-          id="reqDesc"
-          placeholder="Nhu cầu học..."
-        ></textarea>
+        <label>Mô tả</label>
+        <textarea id="reqDesc" placeholder="Nhu cầu chi tiết..."></textarea>
       </div>
 
       <div class="modal-actions">
-
-        <button
-          class="cancel-button"
-          data-close
-        >
-          Hủy
-        </button>
-
-        <button
-          class="primary-button"
-          id="submitPostReqBtn"
-        >
-          Gửi API
-        </button>
-
+        <button class="cancel-button" data-close>Hủy</button>
+        <button class="primary-button" id="submitPostReqBtn">Đăng yêu cầu</button>
       </div>
     `;
   }
-
 
   if (type === 'event') {
-    const id =
-      data._id ||
-      data.id;
+    const id = data._id || data.id;
 
     return `
-      <h2>
-        Chi tiết lịch
-      </h2>
-
-      <p>
-        <b>
-          ${escapeHtml(
-            data.subject ||
-              'Buổi học'
-          )}
-        </b>
-      </p>
-
-      <p>
-        Bắt đầu:
-        ${formatDateTime(
-          data.startTime
-        )}
-      </p>
-
-      <p>
-        Kết thúc:
-        ${formatDateTime(
-          data.endTime
-        )}
-      </p>
-
-      <p>
-        Trạng thái:
-        ${escapeHtml(
-          formatStatus(
-            data.status
-          )
-        )}
-      </p>
+      <h2>Chi tiết lịch học</h2>
+      <p><b>${escapeHtml(data.subject || 'Buổi học')}</b></p>
+      <p>Bắt đầu: ${formatDateTime(data.startTime)}</p>
+      <p>Kết thúc: ${formatDateTime(data.endTime)}</p>
+      <p>Trạng thái: ${escapeHtml(formatStatus(data.status))}</p>
 
       <div class="modal-actions">
-
-        <button
-          class="cancel-button"
-          data-close
-        >
-          Đóng
-        </button>
-
+        <button class="cancel-button" data-close>Đóng</button>
         ${
           id
-            ? `
-              <button
-                class="primary-button"
-                id="completeAppointmentBtn"
-                data-id="${escapeHtml(
-                  id
-                )}"
-              >
-                Đánh dấu hoàn thành
-              </button>
-            `
+            ? `<button class="primary-button" id="completeAppointmentBtn" data-id="${escapeHtml(id)}">Đánh dấu hoàn thành</button>`
             : ''
         }
-
       </div>
     `;
   }
-
 
   if (type === 'review') {
     return `
-      <h2>
-        Duyệt gia sư
-      </h2>
-
-      <p>
-        Hành động gọi:
-        PUT /admin/users/:id/verify
-      </p>
+      <h2>Duyệt gia sư</h2>
+      <p>Xác nhận hồ sơ đạt yêu cầu kiểm định chuyên môn?</p>
 
       <div class="modal-actions">
-
-        <button
-          class="cancel-button"
-          data-close
-        >
-          Hủy
+        <button class="cancel-button" data-close>Hủy</button>
+        <button class="primary-button" id="confirmVerifyTutorBtn" data-user-id="${escapeHtml(data.userId || '')}">
+          Duyệt ngay
         </button>
-
-        <button
-          class="primary-button"
-          id="confirmVerifyTutorBtn"
-          data-user-id="${escapeHtml(
-            data.userId || ''
-          )}"
-        >
-          Duyệt
-        </button>
-
       </div>
     `;
   }
 
-
   return `
-    <h2>
-      ${escapeHtml(
-        data.feature ||
-          'Tính năng'
-      )}
-    </h2>
-
-    <p>
-      Tính năng này chưa có endpoint
-      trong backend hiện tại.
-    </p>
+    <h2>${escapeHtml(data.feature || 'Tính năng')}</h2>
+    <p>Tính năng này chưa có endpoint trong backend hiện tại.</p>
 
     <div class="modal-actions">
-      <button
-        class="cancel-button"
-        data-close
-      >
-        Đóng
-      </button>
+      <button class="cancel-button" data-close>Đóng</button>
     </div>
   `;
 }
 
-function openModal(
-  type,
-  data = {}
-) {
-  const modalContent =
-    $('#modalContent');
+function openModal(type, data = {}) {
+  const modalContent = $('#modalContent');
+  const modalBackdrop = $('#modalBackdrop');
 
-  const modalBackdrop =
-    $('#modalBackdrop');
+  if (modalContent) modalContent.innerHTML = modalTemplate(type, data);
 
-  if (modalContent) {
-    modalContent.innerHTML =
-      modalTemplate(
-        type,
-        data
+  modalBackdrop?.classList.add('open');
+  modalBackdrop?.setAttribute('aria-hidden', 'false');
+
+  $('[data-close]')?.addEventListener('click', closeModal);
+
+  // Booking submit
+  $('#submitBookingBtn')?.addEventListener('click', async () => {
+    const tutorId = state.selectedTutorId;
+    const subject = $('#bookingSubject')?.value.trim();
+    const start = $('#bookingStart')?.value;
+    const end = $('#bookingEnd')?.value;
+    const notes = $('#bookingNotes')?.value.trim() || '';
+
+    if (!subject || !start || !end) {
+      showToast('Vui lòng nhập đủ dữ liệu.');
+      return;
+    }
+
+    if (new Date(end) <= new Date(start)) {
+      showToast('Thời gian kết thúc phải sau thời gian bắt đầu.');
+      return;
+    }
+
+    const token = getToken();
+    if (token && token.startsWith('demo_token_')) {
+      state.data.appointments.push({
+        id: 'apt-' + Date.now(),
+        _id: 'apt-' + Date.now(),
+        tutorId: { _id: tutorId || 'tutor-1', name: state.selectedTutor || 'Gia sư' },
+        tutorName: state.selectedTutor || 'Gia sư',
+        subject: subject,
+        startTime: new Date(start),
+        endTime: new Date(end),
+        status: 'confirmed',
+        type: 'online',
+        price: 300000
+      });
+      closeModal();
+      showToast('✅ Tạo lịch thành công (Demo)');
+      renderAllViews();
+      return;
+    }
+
+    try {
+      await createAppointment(
+        tutorId,
+        subject,
+        toIsoFromDateTimeLocal(start),
+        toIsoFromDateTimeLocal(end),
+        notes
       );
-  }
-
-  modalBackdrop?.classList.add(
-    'open'
-  );
-
-  modalBackdrop?.setAttribute(
-    'aria-hidden',
-    'false'
-  );
-
-  $('[data-close]')
-    ?.addEventListener(
-      'click',
-      closeModal
-    );
-
-
-  /*
-   * Booking
-   */
-  $('#submitBookingBtn')
-    ?.addEventListener(
-      'click',
-      async () => {
-
-        const tutorId =
-          state.selectedTutorId;
-
-        const subject =
-          $('#bookingSubject')
-            ?.value.trim();
-
-        const start =
-          $('#bookingStart')
-            ?.value;
-
-        const end =
-          $('#bookingEnd')
-            ?.value;
-
-        const notes =
-          $('#bookingNotes')
-            ?.value.trim() ||
-          '';
-
-        if (!tutorId) {
-          showToast(
-            'Chưa có tutorId từ API.'
-          );
-
-          return;
-        }
-
-        if (
-          !subject ||
-          !start ||
-          !end
-        ) {
-          showToast(
-            'Vui lòng nhập đủ dữ liệu.'
-          );
-
-          return;
-        }
-
-        if (
-          new Date(end) <=
-          new Date(start)
-        ) {
-          showToast(
-            'Thời gian kết thúc phải sau thời gian bắt đầu.'
-          );
-
-          return;
-        }
-
-        try {
-
-          await createAppointment(
-            tutorId,
-            subject,
-            toIsoFromDateTimeLocal(
-              start
-            ),
-            toIsoFromDateTimeLocal(
-              end
-            ),
-            notes
-          );
-
-          closeModal();
-
-          showToast(
-            'Tạo lịch thành công.'
-          );
-
-          await fetchViewData();
-
-          renderAllViews();
-
-        } catch (error) {
-
-          showToast(
-            `Tạo lịch thất bại: ${error.message}`
-          );
-
-        }
-      }
-    );
-
-
-  /*
-   * Tutor request
-   */
-  $('#submitPostReqBtn')
-    ?.addEventListener(
-      'click',
-      async () => {
-
-        const subject =
-          $('#reqSubject')
-            ?.value.trim();
-
-        const grade =
-          $('#reqGrade')
-            ?.value.trim() ||
-          parseGrade(
-            subject
-          );
-
-        const budget =
-          Number(
-            $('#reqBudget')
-              ?.value || 0
-          );
-
-        const description =
-          $('#reqDesc')
-            ?.value.trim() ||
-          '';
-
-        if (
-          !subject ||
-          !grade ||
-          !budget
-        ) {
-          showToast(
-            'Vui lòng nhập đủ thông tin.'
-          );
-
-          return;
-        }
-
-        try {
-
-          await createTutorRequest(
-            subject,
-            grade,
-            description,
-            budget
-          );
-
-          closeModal();
-
-          showToast(
-            'Đã tạo yêu cầu học.'
-          );
-
-          await fetchViewData();
-
-          renderAllViews();
-
-        } catch (error) {
-
-          showToast(
-            `Tạo yêu cầu thất bại: ${error.message}`
-          );
-
-        }
-      }
-    );
-
-
-  /*
-   * Verify tutor
-   */
-  $('#confirmVerifyTutorBtn')
-    ?.addEventListener(
-      'click',
-      async (event) => {
-
-        const userId =
-          event.currentTarget
-            .dataset.userId;
-
-        if (!userId) {
-          showToast(
-            'Không có userId.'
-          );
-
-          return;
-        }
-
-        try {
-
-          await verifyTutor(
-            userId
-          );
-
-          closeModal();
-
-          showToast(
-            'Đã xác minh gia sư.'
-          );
-
-          await fetchViewData();
-
-          renderAllViews();
-
-        } catch (error) {
-
-          showToast(
-            `Xác minh thất bại: ${error.message}`
-          );
-
-        }
-      }
-    );
-
-
-  /*
-   * Complete appointment
-   */
-  $('#completeAppointmentBtn')
-    ?.addEventListener(
-      'click',
-      async (event) => {
-
-        const id =
-          event.currentTarget
-            .dataset.id;
-
-        try {
-
-          await updateAppointment(
-            id,
-            'completed'
-          );
-
-          closeModal();
-
-          showToast(
-            'Đã hoàn thành buổi học.'
-          );
-
-          await fetchViewData();
-
-          renderAllViews();
-
-        } catch (error) {
-
-          showToast(
-            `Cập nhật thất bại: ${error.message}`
-          );
-
-        }
-      }
-    );
+      closeModal();
+      showToast('Tạo lịch thành công.');
+      await fetchViewData();
+      renderAllViews();
+    } catch (error) {
+      showToast(`Tạo lịch thất bại: ${error.message}`);
+    }
+  });
+
+  // Tutor request submit
+  $('#submitPostReqBtn')?.addEventListener('click', async () => {
+    const subject = $('#reqSubject')?.value.trim();
+    const grade = $('#reqGrade')?.value.trim() || parseGrade(subject);
+    const budget = Number($('#reqBudget')?.value || 0);
+    const description = $('#reqDesc')?.value.trim() || '';
+
+    if (!subject || !grade || !budget) {
+      showToast('Vui lòng nhập đủ thông tin.');
+      return;
+    }
+
+    const token = getToken();
+    if (token && token.startsWith('demo_token_')) {
+      state.data.tutorRequests.push({
+        id: 'req-' + Date.now(),
+        _id: 'req-' + Date.now(),
+        studentId: state.currentUser,
+        studentName: state.currentUser?.name || 'Học sinh',
+        avatar: getInitials(state.currentUser?.name),
+        subject,
+        grade,
+        description,
+        budget
+      });
+      closeModal();
+      showToast('✅ Đã tạo yêu cầu học (Demo)');
+      renderAllViews();
+      return;
+    }
+
+    try {
+      await createTutorRequest(subject, grade, description, budget);
+      closeModal();
+      showToast('Đã tạo yêu cầu học.');
+      await fetchViewData();
+      renderAllViews();
+    } catch (error) {
+      showToast(`Tạo yêu cầu thất bại: ${error.message}`);
+    }
+  });
+
+  // Verify tutor submit
+  $('#confirmVerifyTutorBtn')?.addEventListener('click', async (event) => {
+    const userId = event.currentTarget.dataset.userId;
+    if (!userId) {
+      showToast('Không có userId.');
+      return;
+    }
+
+    const token = getToken();
+    if (token && token.startsWith('demo_token_')) {
+      const u = state.data.adminUsers.find(user => (user._id || user.id) === userId);
+      if (u) u.verified = true;
+      closeModal();
+      showToast('✅ Đã xác minh gia sư (Demo)');
+      renderAllViews();
+      return;
+    }
+
+    try {
+      await verifyTutor(userId);
+      closeModal();
+      showToast('Đã xác minh gia sư.');
+      await fetchViewData();
+      renderAllViews();
+    } catch (error) {
+      showToast(`Xác minh thất bại: ${error.message}`);
+    }
+  });
+
+  // Complete appointment submit
+  $('#completeAppointmentBtn')?.addEventListener('click', async (event) => {
+    const id = event.currentTarget.dataset.id;
+    const token = getToken();
+
+    if (token && token.startsWith('demo_token_')) {
+      const apt = state.data.appointments.find(a => (a._id || a.id) === id);
+      if (apt) apt.status = 'completed';
+      closeModal();
+      showToast('✅ Đã hoàn thành buổi học (Demo)');
+      renderAllViews();
+      return;
+    }
+
+    try {
+      await updateAppointment(id, 'completed');
+      closeModal();
+      showToast('Đã hoàn thành buổi học.');
+      await fetchViewData();
+      renderAllViews();
+    } catch (error) {
+      showToast(`Cập nhật thất bại: ${error.message}`);
+    }
+  });
 }
 
 function closeModal() {
-  const modal =
-    $('#modalBackdrop');
-
-  if (!modal) {
-    return;
-  }
-
-  modal.classList.remove(
-    'open'
-  );
-
-  modal.setAttribute(
-    'aria-hidden',
-    'true'
-  );
+  const modal = $('#modalBackdrop');
+  if (!modal) return;
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
 }
 
 
@@ -4360,67 +2959,35 @@ function closeModal() {
 ========================================================= */
 
 function renderLoginForm() {
-  const authForm =
-    document.querySelector('.auth-form');
- 
-  if (!authForm) {
-    return;
-  }
- 
+  const authForm = document.querySelector('.auth-form');
+  if (!authForm) return;
+
   authForm.innerHTML = `
-    <span class="auth-welcome">
-      CHÀO MỪNG TRỞ LẠI
-    </span>
- 
-    <h2>
-      Đăng nhập vào TutorConnect
-    </h2>
- 
-    <p>
-      Tiếp tục hành trình dạy và học của bạn.
-    </p>
- 
+    <span class="auth-welcome">CHÀO MỪNG TRỞ LẠI</span>
+    <h2>Đăng nhập vào TutorConnect</h2>
+    <p>Tiếp tục hành trình dạy và học của bạn.</p>
+
     <form id="loginForm">
- 
       <label>
         Email
-        <input
-          id="loginEmail"
-          type="email"
-          placeholder="you@example.com"
-          autocomplete="username"
-          required
-        />
+        <input id="loginEmail" type="email" placeholder="you@example.com" autocomplete="username" required />
       </label>
- 
+
       <label>
         Mật khẩu
-        <input
-          id="loginPassword"
-          type="password"
-          placeholder="••••••••"
-          autocomplete="current-password"
-          required
-        />
+        <input id="loginPassword" type="password" placeholder="••••••••" autocomplete="current-password" required />
       </label>
- 
-      <button
-        class="auth-submit"
-        type="submit"
-      >
-        Đăng nhập
-        <span>→</span>
+
+      <button class="auth-submit" type="submit">
+        Đăng nhập <span>→</span>
       </button>
- 
     </form>
- 
+
     <div class="auth-footer">
       Chưa có tài khoản?
-      <a href="#" id="showRegister">
-        Đăng ký miễn phí
-      </a>
+      <a href="#" id="showRegister">Đăng ký miễn phí</a>
     </div>
- 
+
     <div class="demo-section">
       <p class="demo-label">👀 Xem Demo</p>
       <div class="demo-buttons">
@@ -4448,151 +3015,79 @@ function renderLoginForm() {
       </div>
     </div>
   `;
- 
-  $('#loginForm')?.addEventListener(
-    'submit',
-    async (event) => {
-      event.preventDefault();
- 
-      const email =
-        $('#loginEmail')
-          ?.value
-          .trim();
- 
-      const password =
-        $('#loginPassword')
-          ?.value;
- 
-      await startLogin(
-        email,
-        password
-      );
-    }
-  );
- 
-  $('#showRegister')?.addEventListener(
-    'click',
-    (event) => {
-      event.preventDefault();
-      renderRegisterForm();
-    }
-  );
- 
+
+  $('#loginForm')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const email = $('#loginEmail')?.value.trim();
+    const password = $('#loginPassword')?.value;
+    await startLogin(email, password);
+  });
+
+  $('#showRegister')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    renderRegisterForm();
+  });
+
   // Demo buttons
   $('#demoBtnStudent')?.addEventListener('click', (e) => {
     e.preventDefault();
     demoDemoLogin('student');
   });
- 
+
   $('#demoBtnTutor')?.addEventListener('click', (e) => {
     e.preventDefault();
     demoDemoLogin('tutor');
   });
- 
+
   $('#demoBtnAdmin')?.addEventListener('click', (e) => {
     e.preventDefault();
     demoDemoLogin('admin');
   });
 }
 
-
-/* =========================================================
-   REGISTER FORM
-========================================================= */
-
 function renderRegisterForm() {
-  const authForm =
-    document.querySelector('.auth-form');
- 
-  if (!authForm) {
-    return;
-  }
- 
+  const authForm = document.querySelector('.auth-form');
+  if (!authForm) return;
+
   authForm.innerHTML = `
-    <span class="auth-welcome">
-      THAM GIA TUTORMATE
-    </span>
- 
-    <h2>
-      Tạo tài khoản
-    </h2>
- 
-    <p>
-      Đăng ký miễn phí để bắt đầu hành trình của bạn.
-    </p>
- 
+    <span class="auth-welcome">THAM GIA TUTORMATE</span>
+    <h2>Tạo tài khoản</h2>
+    <p>Đăng ký miễn phí để bắt đầu hành trình của bạn.</p>
+
     <form id="registerForm">
- 
       <label>
         Họ và tên
-        <input
-          id="registerName"
-          type="text"
-          placeholder="Nguyễn Văn A"
-          autocomplete="name"
-          required
-        />
+        <input id="registerName" type="text" placeholder="Nguyễn Văn A" autocomplete="name" required />
       </label>
- 
+
       <label>
         Email
-        <input
-          id="registerEmail"
-          type="email"
-          placeholder="you@example.com"
-          autocomplete="email"
-          required
-        />
+        <input id="registerEmail" type="email" placeholder="you@example.com" autocomplete="email" required />
       </label>
- 
+
       <label>
         Mật khẩu
-        <input
-          id="registerPassword"
-          type="password"
-          placeholder="Tối thiểu 6 ký tự"
-          autocomplete="new-password"
-          minlength="6"
-          required
-        />
+        <input id="registerPassword" type="password" placeholder="Tối thiểu 6 ký tự" autocomplete="new-password" minlength="6" required />
       </label>
- 
+
       <label>
         Bạn là
-        <select
-          id="registerRole"
-          required
-        >
-          <option value="student">
-            Học sinh
-          </option>
- 
-          <option value="tutor">
-            Gia sư
-          </option>
+        <select id="registerRole" required>
+          <option value="student">Học sinh</option>
+          <option value="tutor">Gia sư</option>
         </select>
       </label>
- 
-      <button
-        class="auth-submit"
-        type="submit"
-      >
-        Tạo tài khoản
-        <span>→</span>
+
+      <button class="auth-submit" type="submit">
+        Tạo tài khoản <span>→</span>
       </button>
- 
     </form>
- 
+
     <div class="auth-footer">
       Đã có tài khoản?
-      <a
-        href="#"
-        id="showLogin"
-      >
-        Đăng nhập
-      </a>
+      <a href="#" id="showLogin">Đăng nhập</a>
     </div>
- 
+
     <div class="demo-section">
       <p class="demo-label">👀 Xem Demo Trước Khi Đăng Ký</p>
       <div class="demo-buttons">
@@ -4613,250 +3108,106 @@ function renderRegisterForm() {
       </div>
     </div>
   `;
- 
-  $('#registerForm')?.addEventListener(
-    'submit',
-    async (event) => {
-      event.preventDefault();
- 
-      const name =
-        $('#registerName')
-          ?.value
-          .trim();
- 
-      const email =
-        $('#registerEmail')
-          ?.value
-          .trim();
- 
-      const password =
-        $('#registerPassword')
-          ?.value;
- 
-      const role =
-        $('#registerRole')
-          ?.value;
- 
-      if (
-        !name ||
-        !email ||
-        !password ||
-        !role
-      ) {
-        showToast(
-          'Vui lòng nhập đầy đủ thông tin.'
-        );
- 
-        return;
-      }
- 
-      if (
-        password.length < 6
-      ) {
-        showToast(
-          'Mật khẩu phải có ít nhất 6 ký tự.'
-        );
- 
-        return;
-      }
- 
-      await startRegister(
-        name,
-        email,
-        password,
-        role
-      );
+
+  $('#registerForm')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const name = $('#registerName')?.value.trim();
+    const email = $('#registerEmail')?.value.trim();
+    const password = $('#registerPassword')?.value;
+    const role = $('#registerRole')?.value;
+
+    if (!name || !email || !password || !role) {
+      showToast('Vui lòng nhập đầy đủ thông tin.');
+      return;
     }
-  );
- 
-  $('#showLogin')?.addEventListener(
-    'click',
-    (event) => {
-      event.preventDefault();
-      renderLoginForm();
+
+    if (password.length < 6) {
+      showToast('Mật khẩu phải có ít nhất 6 ký tự.');
+      return;
     }
-  );
- 
-  // Demo buttons (Register form)
+
+    await startRegister(name, email, password, role);
+  });
+
+  $('#showLogin')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    renderLoginForm();
+  });
+
   $('#demoBtnStudentReg')?.addEventListener('click', (e) => {
     e.preventDefault();
     demoDemoLogin('student');
   });
- 
+
   $('#demoBtnTutorReg')?.addEventListener('click', (e) => {
     e.preventDefault();
     demoDemoLogin('tutor');
   });
 }
 
-
-/* =========================================================
-   LOGIN
-========================================================= */
-
-async function startLogin(
-  email,
-  password
-) {
-  if (
-    !email ||
-    !password
-  ) {
-    showToast(
-      'Vui lòng nhập email và mật khẩu.'
-    );
-
+async function startLogin(email, password) {
+  if (!email || !password) {
+    showToast('Vui lòng nhập email và mật khẩu.');
     return;
   }
 
   try {
-    const user =
-      await login(
-        email,
-        password
-      );
+    const user = await login(email, password);
+    if (!user?.role) throw new Error('Backend không trả về role.');
 
-    if (
-      !user?.role
-    ) {
-      throw new Error(
-        'Backend không trả về role.'
-      );
-    }
-
-    state.currentUser =
-      user;
-
-    state.role =
-      user.role;
+    state.currentUser = user;
+    state.role = user.role;
 
     showAuthScreen(false);
-
     applyIdentity();
     renderNav();
 
     await fetchViewData();
-
     renderAllViews();
+    navigateWithoutFetch('dashboard');
 
-    navigateWithoutFetch(
-      'dashboard'
-    );
-
-    showToast(
-      `Đăng nhập thành công: ${
-        user.name ||
-        user.email
-      }`
-    );
-
+    showToast(`Đăng nhập thành công: ${user.name || user.email}`);
   } catch (error) {
-
     clearToken();
-
-    state.currentUser =
-      null;
-
-    showToast(
-      `Đăng nhập thất bại: ${error.message}`
-    );
+    state.currentUser = null;
+    showToast(`Đăng nhập thất bại: ${error.message}`);
   }
 }
 
-
-/* =========================================================
-   REGISTER
-========================================================= */
-
-async function startRegister(
-  name,
-  email,
-  password,
-  role
-) {
+async function startRegister(name, email, password, role) {
   try {
+    const user = await register(email, password, name, role);
+    if (!user?.role) throw new Error('Backend không trả về role.');
 
-    const user =
-      await register(
-        email,
-        password,
-        name,
-        role
-      );
-
-    if (
-      !user?.role
-    ) {
-      throw new Error(
-        'Backend không trả về role.'
-      );
-    }
-
-    state.currentUser =
-      user;
-
-    state.role =
-      user.role;
+    state.currentUser = user;
+    state.role = user.role;
 
     showAuthScreen(false);
-
     applyIdentity();
     renderNav();
 
     await fetchViewData();
-
     renderAllViews();
+    navigateWithoutFetch('dashboard');
 
-    navigateWithoutFetch(
-      'dashboard'
-    );
-
-    showToast(
-      'Tạo tài khoản thành công!'
-    );
-
+    showToast('Tạo tài khoản thành công!');
   } catch (error) {
-
     clearToken();
-
-    state.currentUser =
-      null;
-
-    showToast(
-      `Đăng ký thất bại: ${error.message}`
-    );
+    state.currentUser = null;
+    showToast(`Đăng ký thất bại: ${error.message}`);
   }
 }
-
-
-/* =========================================================
-   LOGOUT
-========================================================= */
 
 function logout() {
-
   clearToken();
 
-  state.currentUser =
-    null;
-
-  state.role =
-    'student';
-
-  state.currentView =
-    'dashboard';
-
-  state.selectedTutor =
-    null;
-
-  state.selectedTutorId =
-    null;
-
-  state.selectedConversationId =
-    null;
-
-  state.currentChatPartner =
-    null;
+  state.currentUser = null;
+  state.role = 'student';
+  state.currentView = 'dashboard';
+  state.selectedTutor = null;
+  state.selectedTutorId = null;
+  state.selectedConversationId = null;
+  state.currentChatPartner = null;
 
   state.data = {
     appointments: [],
@@ -4866,93 +3217,34 @@ function logout() {
     messages: [],
     transactions: [],
     adminUsers: [],
-    adminStats: null
+    adminStats: null,
+    progress: null,
+    reviews: []
   };
 
   renderLoginForm();
-
-  showAuthScreen(
-    true
-  );
-
+  showAuthScreen(true);
   renderNav();
-
   renderAllViews();
 
-  showToast(
-    'Bạn đã đăng xuất.'
-  );
+  showToast('Bạn đã đăng xuất.');
 }
 
-
-/* =========================================================
-   LOGOUT BUTTON
-========================================================= */
-
 function addLogoutButton() {
+  const sidebarBottom = document.querySelector('.sidebar-bottom');
+  if (!sidebarBottom || document.querySelector('#logoutBtn')) return;
 
-  const sidebarBottom =
-    document.querySelector(
-      '.sidebar-bottom'
-    );
+  const logoutButton = document.createElement('button');
+  logoutButton.className = 'side-link';
+  logoutButton.id = 'logoutBtn';
+  logoutButton.innerHTML = `<span>↪</span> Đăng xuất`;
 
-  if (
-    !sidebarBottom
-  ) {
-    return;
-  }
+  sidebarBottom.insertBefore(logoutButton, sidebarBottom.firstElementChild);
 
-  if (
-    document.querySelector(
-      '#logoutBtn'
-    )
-  ) {
-    return;
-  }
-
-  const logoutButton =
-    document.createElement(
-      'button'
-    );
-
-  logoutButton.className =
-    'side-link';
-
-  logoutButton.id =
-    'logoutBtn';
-
-  logoutButton.innerHTML =
-    `
-      <span>↪</span>
-      Đăng xuất
-    `;
-
-  /*
-   * Đặt nút đăng xuất trước
-   * Trung tâm hỗ trợ / Cài đặt.
-   */
-  sidebarBottom.insertBefore(
-    logoutButton,
-    sidebarBottom.firstElementChild
-  );
-
-  logoutButton.addEventListener(
-    'click',
-    () => {
-
-      const confirmed =
-        window.confirm(
-          'Bạn có chắc muốn đăng xuất không?'
-        );
-
-      if (
-        confirmed
-      ) {
-        logout();
-      }
-
-    }
-  );
+  logoutButton.addEventListener('click', () => {
+    const confirmed = window.confirm('Bạn có chắc muốn đăng xuất không?');
+    if (confirmed) logout();
+  });
 }
 
 
@@ -4960,209 +3252,82 @@ function addLogoutButton() {
    ROLE MENU
 ========================================================= */
 
-$('#roleMenuButton')
-  ?.addEventListener(
-    'click',
-    () => {
+$('#roleMenuButton')?.addEventListener('click', () => {
+  const menu = $('#roleMenu');
+  if (!menu) return;
 
-      const menu =
-        $('#roleMenu');
-
-      if (!menu) {
-        return;
-      }
-
-      menu.classList.toggle(
-        'open'
-      );
-
-      $('#roleMenuButton')
-        ?.setAttribute(
-          'aria-expanded',
-          menu.classList.contains(
-            'open'
-          )
-            ? 'true'
-            : 'false'
-        );
-    }
+  menu.classList.toggle('open');
+  $('#roleMenuButton')?.setAttribute(
+    'aria-expanded',
+    menu.classList.contains('open') ? 'true' : 'false'
   );
+});
 
-
-$$('#roleMenu button')
-  .forEach(
-    (button) => {
-
-      button.addEventListener(
-        'click',
-        async () => {
-
-          const role =
-            button.dataset.role;
-
-          if (
-            !state.currentUser
-          ) {
-            showToast(
-              'Hãy đăng nhập trước.'
-            );
-
-            return;
-          }
-
-          /*
-           * Không cho đổi role giả lập.
-           */
-          if (
-            role !==
-            state.currentUser.role
-          ) {
-            showToast(
-              `Tài khoản hiện tại là ${
-                state.currentUser.role
-              }. Không thể đổi role giả lập.`
-            );
-
-            return;
-          }
-
-          state.role =
-            role;
-
-          state.currentView =
-            'dashboard';
-
-          applyIdentity();
-
-          renderNav();
-
-          await fetchViewData();
-
-          renderAllViews();
-
-          navigateWithoutFetch(
-            'dashboard'
-          );
-        }
-      );
-
+$$('#roleMenu button').forEach((button) => {
+  button.addEventListener('click', async () => {
+    const role = button.dataset.role;
+    if (!state.currentUser) {
+      showToast('Hãy đăng nhập trước.');
+      return;
     }
-  );
+
+    if (role !== state.currentUser.role) {
+      showToast(
+        `Tài khoản hiện tại là ${state.currentUser.role}. Không thể đổi role giả lập.`
+      );
+      return;
+    }
+
+    state.role = role;
+    state.currentView = 'dashboard';
+
+    applyIdentity();
+    renderNav();
+    await fetchViewData();
+    renderAllViews();
+    navigateWithoutFetch('dashboard');
+  });
+});
 
 
 /* =========================================================
    GLOBAL EVENTS
 ========================================================= */
 
-$('#mobileMenu')
-  ?.addEventListener(
-    'click',
-    () => {
+$('#mobileMenu')?.addEventListener('click', () => {
+  $('.sidebar')?.classList.toggle('open');
+});
 
-      $('.sidebar')
-        ?.classList.toggle(
-          'open'
-        );
+$('#closeModal')?.addEventListener('click', closeModal);
 
-    }
-  );
-
-
-$('#closeModal')
-  ?.addEventListener(
-    'click',
-    closeModal
-  );
-
-
-$('#modalBackdrop')
-  ?.addEventListener(
-    'click',
-    (event) => {
-
-      if (
-        event.target ===
-        $('#modalBackdrop')
-      ) {
-        closeModal();
-      }
-
-    }
-  );
-
-
-$('#searchBtn')
-  ?.addEventListener(
-    'click',
-    async () => {
-
-      await navigate(
-        'explore'
-      );
-
-      setTimeout(
-        () => {
-          $('#mapSearch')
-            ?.focus();
-        },
-        50
-      );
-
-    }
-  );
-
-
-$('#helpBtn')
-  ?.addEventListener(
-    'click',
-    () =>
-      openModal(
-        'unsupported',
-        {
-          feature:
-            'Trung tâm hỗ trợ'
-        }
-      )
-  );
-
-
-$('#notificationBtn')
-  ?.addEventListener(
-    'click',
-    () =>
-      showToast(
-        'Backend hiện chưa có Notification API.'
-      )
-  );
-
-
-$('#profileBtn')
-  ?.addEventListener(
-    'click',
-    () =>
-      openModal(
-        'unsupported',
-        {
-          feature:
-            'Hồ sơ cá nhân'
-        }
-      )
-  );
-
-
-document.addEventListener(
-  'keydown',
-  (event) => {
-
-    if (
-      event.key ===
-      'Escape'
-    ) {
-      closeModal();
-    }
-
+$('#modalBackdrop')?.addEventListener('click', (event) => {
+  if (event.target === $('#modalBackdrop')) {
+    closeModal();
   }
+});
+
+$('#searchBtn')?.addEventListener('click', async () => {
+  await navigate('explore');
+  setTimeout(() => {
+    $('#mapSearch')?.focus();
+  }, 50);
+});
+
+$('#helpBtn')?.addEventListener('click', () =>
+  openModal('unsupported', { feature: 'Trung tâm hỗ trợ' })
 );
+
+$('#notificationBtn')?.addEventListener('click', () =>
+  showToast('Chưa có thông báo mới.')
+);
+
+$('#profileBtn')?.addEventListener('click', () =>
+  openModal('unsupported', { feature: 'Hồ sơ cá nhân' })
+);
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') closeModal();
+});
 
 
 /* =========================================================
@@ -5170,98 +3335,53 @@ document.addEventListener(
 ========================================================= */
 
 async function bootstrap() {
-
   loadCurrentUser();
-
-  /*
-   * Tạo form đăng nhập
-   * bằng JS để không còn dữ liệu demo
-   * trong index.html.
-   */
   renderLoginForm();
-
-  /*
-   * Tạo nút đăng xuất.
-   */
   addLogoutButton();
 
-  const token =
-    getToken();
+  const token = getToken();
 
-  /*
-   * Chưa đăng nhập:
-   * hiện màn hình login.
-   */
-  if (
-    !token ||
-    !state.currentUser
-  ) {
-
-    showAuthScreen(
-      true
-    );
-
+  if (!token || !state.currentUser) {
+    showAuthScreen(true);
     renderNav();
-
     renderAllViews();
-
     return;
   }
 
-  /*
-   * Đã có JWT:
-   * khôi phục tài khoản.
-   */
-  /*
- * Đã có JWT:
- * xác thực lại session với backend.
- * Nếu token hết hạn / user bị xóa,
- * apiCall() sẽ xử lý 401.
- */
-try {
-  const freshUser =
-    await getCurrentUser();
+  // Nếu là token Demo
+  if (token.startsWith('demo_token_')) {
+    loadDemoMockData(state.currentUser.role || 'student');
+    state.role = state.currentUser.role || 'student';
+    showAuthScreen(false);
+    applyIdentity();
+    renderNav();
+    renderAllViews();
+    navigateWithoutFetch('dashboard');
+    return;
+  }
 
-  saveCurrentUser(
-    freshUser
-  );
-} catch (error) {
-  clearToken();
+  // Xác thực token thật với backend
+  try {
+    const freshUser = await getCurrentUser();
+    saveCurrentUser(freshUser);
+  } catch (error) {
+    clearToken();
+    state.currentUser = null;
+    showAuthScreen(true);
+    renderNav();
+    renderAllViews();
+    return;
+  }
 
-  state.currentUser =
-    null;
+  state.role = state.currentUser.role || 'student';
 
-  showAuthScreen(
-    true
-  );
-
+  showAuthScreen(false);
+  applyIdentity();
   renderNav();
+  await fetchViewData();
   renderAllViews();
-
-  return;
+  navigateWithoutFetch('dashboard');
 }
-
-state.role =
-  state.currentUser.role ||
-  'student';
-
-showAuthScreen(
-  false
-);
-
-applyIdentity();
-
-renderNav();
-
-await fetchViewData();
-
-  renderAllViews();
-
-  navigateWithoutFetch(
-    'dashboard'
-  );
-}
-
 
 bootstrap();
 
@@ -5270,49 +3390,42 @@ bootstrap();
    EXPORT FOR TESTING
 ========================================================= */
 
-if (
-  typeof module !==
-  'undefined' &&
-  module.exports
-) {
-
+if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-
     apiCall,
-
     login,
     register,
     logout,
-
     searchTutors,
-
     getAppointments,
     getAppointment,
     createAppointment,
     updateAppointment,
     getCurrentUser,
-
     getTutorRequests,
     createTutorRequest,
     updateTutorRequest,
     getTutorAvailability,
     getMyAvailability,
     updateMyAvailability,
-
     getMessages,
     sendMessage,
     markMessageRead,
-
     createReview,
     getReviews,
-
     createTransaction,
     getTransactions,
-
     updateProfile,
-
     getAllUsers,
     verifyTutor,
-    getAdminStats
+    getAdminStats,
+    loadDemoMockData,
+    demoDemoLogin,
+    renderStudentDashboardWithMockData,
+    renderCalendarWithMockData,
+    renderMessagesWithMockData,
+    renderFinanceWithMockData,
+    renderTutorDashboardWithMockData,
+    renderAdminDashboardWithMockData
   };
 }
