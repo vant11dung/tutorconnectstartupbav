@@ -213,7 +213,11 @@ async function apiCall(endpoint, options = {}) {
 /* =========================================================
    AUTH API
 ========================================================= */
-
+async function getCurrentUser() {
+  return apiCall(
+    '/auth/me'
+  );
+}
 async function login(email, password) {
   const result = await apiCall('/auth/login', {
     method: 'POST',
@@ -5007,19 +5011,48 @@ async function bootstrap() {
    * Đã có JWT:
    * khôi phục tài khoản.
    */
-  state.role =
-    state.currentUser.role ||
-    'student';
+  /*
+ * Đã có JWT:
+ * xác thực lại session với backend.
+ * Nếu token hết hạn / user bị xóa,
+ * apiCall() sẽ xử lý 401.
+ */
+try {
+  const freshUser =
+    await getCurrentUser();
+
+  saveCurrentUser(
+    freshUser
+  );
+} catch (error) {
+  clearToken();
+
+  state.currentUser =
+    null;
 
   showAuthScreen(
-    false
+    true
   );
 
-  applyIdentity();
-
   renderNav();
+  renderAllViews();
 
-  await fetchViewData();
+  return;
+}
+
+state.role =
+  state.currentUser.role ||
+  'student';
+
+showAuthScreen(
+  false
+);
+
+applyIdentity();
+
+renderNav();
+
+await fetchViewData();
 
   renderAllViews();
 
@@ -5056,6 +5089,7 @@ if (
     getAppointment,
     createAppointment,
     updateAppointment,
+    getCurrentUser,
 
     getTutorRequests,
     createTutorRequest,

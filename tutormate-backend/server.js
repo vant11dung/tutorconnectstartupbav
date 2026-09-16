@@ -208,6 +208,17 @@ const appointmentSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+// Indexes phục vụ truy vấn lịch và kiểm tra conflict nhanh hơn.
+appointmentSchema.index({
+  tutorId: 1,
+  startTime: 1,
+  status: 1,
+});
+
+appointmentSchema.index({
+  studentId: 1,
+  startTime: 1,
+});
 
 const messageSchema = new mongoose.Schema(
   {
@@ -575,6 +586,47 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+
+// ==========================================
+// CURRENT AUTHENTICATED USER
+// ==========================================
+app.get(
+  '/api/auth/me',
+  authenticate,
+  async (req, res) => {
+    try {
+      const user =
+        await User.findById(
+          req.userId
+        ).select('-password');
+
+      if (!user) {
+        return errorResponse(
+          res,
+          404,
+          'Tài khoản không còn tồn tại'
+        );
+      }
+
+      res.json(
+        publicUser(user)
+      );
+    } catch (err) {
+      console.error(
+        'AUTH ME ERROR:',
+        err
+      );
+
+      errorResponse(
+        res,
+        500,
+        'Lỗi lấy tài khoản hiện tại',
+        err
+      );
+    }
+  }
+);
+
 // ============================================================
 // USERS
 // ============================================================
@@ -808,6 +860,7 @@ app.get(
 // ============================================================
 
 // CREATE APPOINTMENT
+// CREATE APPOINTMENT
 app.post(
   '/api/appointments',
   authenticate,
@@ -827,8 +880,14 @@ app.post(
       const {
         tutorId,
         subject,
+        startTime: rawStartTime,
+        endTime: rawEndTime,
+
+        // Legacy support:
+        // giữ tương thích tạm thời với client cũ.
         dateTime,
-        duration = 60,
+        duration,
+
         notes = '',
       } = req.body;
 
@@ -837,25 +896,84 @@ app.post(
         'Tutor ID'
       );
 
-      if (!subject || !dateTime) {
+      const normalizedSubject = String(
+        subject || ''
+      ).trim();
+
+      if (!normalizedSubject) {
         return errorResponse(
           res,
           400,
-          'Thiếu subject hoặc dateTime'
+          'Subject không được để trống'
         );
       }
 
-      const minutes = Number(duration);
+      const startInput =
+        rawStartTime || dateTime;
+
+      if (!startInput) {
+        return errorResponse(
+          res,
+          400,
+          'Thiếu startTime'
+        );
+      }
+
+      const start =
+        new Date(startInput);
+
+      if (Number.isNaN(start.getTime())) {
+        return errorResponse(
+          res,
+          400,
+          'startTime không hợp lệ'
+        );
+      }
+
+      const end = rawEndTime
+        ? new Date(rawEndTime)
+        : (() => {
+            const minutes =
+              Number(duration || 60);
+
+            if (
+              !Number.isFinite(minutes) ||
+              minutes <= 0 ||
+              minutes > 480
+            ) {
+              return null;
+            }
+
+            return new Date(
+              start.getTime() +
+                minutes * 60 * 1000
+            );
+          })();
 
       if (
-        !Number.isFinite(minutes) ||
-        minutes <= 0 ||
-        minutes > 480
+        !end ||
+        Number.isNaN(end.getTime()) ||
+        end <= start
       ) {
         return errorResponse(
           res,
           400,
-          'Duration không hợp lệ'
+          'endTime không hợp lệ hoặc phải sau startTime'
+        );
+      }
+
+      const durationMinutes =
+        (end.getTime() - start.getTime()) /
+        (60 * 1000);
+
+      if (
+        durationMinutes <= 0 ||
+        durationMinutes > 480
+      ) {
+        return errorResponse(
+          res,
+          400,
+          'Thời lượng buổi học phải từ 1 đến 480 phút'
         );
       }
 
@@ -884,38 +1002,81 @@ app.post(
         );
       }
 
-      const startTime =
-        new Date(dateTime);
-
-      if (Number.isNaN(startTime.getTime())) {
+      if (start <= new Date()) {
         return errorResponse(
           res,
           400,
-          'dateTime không hợp lệ'
+          'Không thể đặt lịch trong quá khứ'
         );
       }
 
-      const endTime = new Date(
-        startTime.getTime() +
-          minutes * 60 * 1000
-      );
+      // Không cho một gia sư nhận hai lịch bị chồng thời gian.
+      const conflict =
+        await Appointment.findOne({
+          tutorId,
+          status: {
+            $in: [
+              'pending',
+              'confirmed',
+            ],
+          },
+          startTime: {
+            $lt: end,
+          },
+          endTime: {
+            $gt: start,
+          },
+        }).select('_id');
+
+      if (conflict) {
+        return errorResponse(
+          res,
+          409,
+          'Khung giờ này đã có lịch học khác'
+        );
+      }
 
       const hourlyRate =
-        Number(tutor.hourlyRate || 0);
+        Number(
+          tutor.hourlyRate || 0
+        );
 
-      // Tính tiền ở backend.
-      const totalAmount = Math.round(
-        (hourlyRate * minutes) / 60
-      );
+      if (
+        !Number.isFinite(hourlyRate) ||
+        hourlyRate < 0
+      ) {
+        return errorResponse(
+          res,
+          500,
+          'Hourly rate của gia sư không hợp lệ'
+        );
+      }
+
+      const totalAmount =
+        Math.round(
+          (hourlyRate * durationMinutes) /
+          60
+        );
+
+      const cleanNotes =
+        String(notes || '').trim();
+
+      if (cleanNotes.length > 2000) {
+        return errorResponse(
+          res,
+          400,
+          'Notes không được vượt quá 2000 ký tự'
+        );
+      }
 
       const appointment =
         await Appointment.create({
           studentId: req.userId,
           tutorId,
-          subject: String(subject).trim(),
-          startTime,
-          endTime,
-          notes: String(notes || ''),
+          subject: normalizedSubject,
+          startTime: start,
+          endTime: end,
+          notes: cleanNotes,
           hourlyRate,
           totalAmount,
           status: 'pending',
@@ -934,7 +1095,9 @@ app.post(
             'name email avatar subjects hourlyRate verified'
           );
 
-      res.status(201).json(populated);
+      res.status(201).json(
+        populated
+      );
     } catch (err) {
       if (err.status) {
         return errorResponse(
@@ -953,7 +1116,6 @@ app.post(
     }
   }
 );
-
 // GET MY APPOINTMENTS
 app.get(
   '/api/appointments',
@@ -1064,6 +1226,7 @@ app.get(
 );
 
 // UPDATE APPOINTMENT
+// UPDATE APPOINTMENT
 app.put(
   '/api/appointments/:id',
   authenticate,
@@ -1087,14 +1250,24 @@ app.put(
         );
       }
 
-      const allowed =
-        req.userRole === 'admin' ||
-        String(appointment.studentId) ===
-          req.userId ||
-        String(appointment.tutorId) ===
-          req.userId;
+      const isAdmin =
+        req.userRole === 'admin';
 
-      if (!allowed) {
+      const isStudent =
+        String(
+          appointment.studentId
+        ) === req.userId;
+
+      const isTutor =
+        String(
+          appointment.tutorId
+        ) === req.userId;
+
+      if (
+        !isAdmin &&
+        !isStudent &&
+        !isTutor
+      ) {
         return errorResponse(
           res,
           403,
@@ -1102,7 +1275,12 @@ app.put(
         );
       }
 
-      if (req.body.status !== undefined) {
+      const requestedStatus =
+        req.body.status;
+
+      if (
+        requestedStatus !== undefined
+      ) {
         const validStatuses = [
           'pending',
           'confirmed',
@@ -1112,7 +1290,7 @@ app.put(
 
         if (
           !validStatuses.includes(
-            req.body.status
+            requestedStatus
           )
         ) {
           return errorResponse(
@@ -1122,24 +1300,152 @@ app.put(
           );
         }
 
-        appointment.status =
-          req.body.status;
-      }
+        const currentStatus =
+          appointment.status;
 
-      if (req.body.notes !== undefined) {
-        appointment.notes =
-          String(req.body.notes);
+        if (
+          !isAdmin &&
+          currentStatus === 'cancelled'
+        ) {
+          return errorResponse(
+            res,
+            409,
+            'Lịch học đã bị hủy và không thể khôi phục'
+          );
+        }
+
+        if (
+          !isAdmin &&
+          currentStatus === 'completed'
+        ) {
+          return errorResponse(
+            res,
+            409,
+            'Lịch học đã hoàn thành và không thể thay đổi'
+          );
+        }
+
+        let canChange = false;
+
+        if (isAdmin) {
+          canChange = true;
+        } else if (isStudent) {
+          canChange =
+            requestedStatus ===
+              'cancelled' &&
+            (
+              currentStatus ===
+                'pending' ||
+              currentStatus ===
+                'confirmed'
+            );
+        } else if (isTutor) {
+          canChange =
+            (
+              currentStatus ===
+                'pending' &&
+              (
+                requestedStatus ===
+                  'confirmed' ||
+                requestedStatus ===
+                  'cancelled'
+              )
+            ) ||
+            (
+              currentStatus ===
+                'confirmed' &&
+              (
+                requestedStatus ===
+                  'cancelled' ||
+                (
+                  requestedStatus ===
+                    'completed' &&
+                  new Date() >=
+                    new Date(
+                      appointment.endTime
+                    )
+                )
+              )
+            );
+        }
+
+        if (!canChange) {
+          return errorResponse(
+            res,
+            403,
+            'Bạn không có quyền chuyển lịch học sang trạng thái này'
+          );
+        }
+
+        appointment.status =
+          requestedStatus;
       }
 
       if (
-        req.body.startTime !== undefined
+        req.body.notes !== undefined
       ) {
-        const start =
-          new Date(
-            req.body.startTime
-          );
+        const notes =
+          String(
+            req.body.notes || ''
+          ).trim();
 
-        if (Number.isNaN(start.getTime())) {
+        if (notes.length > 2000) {
+          return errorResponse(
+            res,
+            400,
+            'Notes không được vượt quá 2000 ký tự'
+          );
+        }
+
+        appointment.notes =
+          notes;
+      }
+
+      const hasStartChange =
+        req.body.startTime !== undefined;
+
+      const hasEndChange =
+        req.body.endTime !== undefined;
+
+      if (
+        hasStartChange ||
+        hasEndChange
+      ) {
+        if (
+          !isAdmin &&
+          appointment.status !==
+            'pending'
+        ) {
+          return errorResponse(
+            res,
+            409,
+            'Chỉ có thể đổi thời gian khi lịch còn pending'
+          );
+        }
+
+        const nextStart =
+          hasStartChange
+            ? new Date(
+                req.body.startTime
+              )
+            : new Date(
+                appointment.startTime
+              );
+
+        const nextEnd =
+          hasEndChange
+            ? new Date(
+                req.body.endTime
+              )
+            : new Date(
+                appointment.endTime
+              );
+
+        if (
+          Number.isNaN(
+            nextStart.getTime()
+          )
+        ) {
           return errorResponse(
             res,
             400,
@@ -1147,29 +1453,93 @@ app.put(
           );
         }
 
-        appointment.startTime = start;
+        if (
+          Number.isNaN(
+            nextEnd.getTime()
+          ) ||
+          nextEnd <= nextStart
+        ) {
+          return errorResponse(
+            res,
+            400,
+            'endTime không hợp lệ hoặc phải sau startTime'
+          );
+        }
+
+        const durationMinutes =
+          (
+            nextEnd.getTime() -
+            nextStart.getTime()
+          ) /
+          (60 * 1000);
 
         if (
-          req.body.endTime !== undefined
+          durationMinutes <= 0 ||
+          durationMinutes > 480
         ) {
-          const end =
-            new Date(
-              req.body.endTime
-            );
-
-          if (
-            Number.isNaN(end.getTime()) ||
-            end <= start
-          ) {
-            return errorResponse(
-              res,
-              400,
-              'endTime không hợp lệ'
-            );
-          }
-
-          appointment.endTime = end;
+          return errorResponse(
+            res,
+            400,
+            'Thời lượng buổi học phải từ 1 đến 480 phút'
+          );
         }
+
+        if (
+          nextStart <= new Date()
+        ) {
+          return errorResponse(
+            res,
+            400,
+            'Không thể đặt lịch trong quá khứ'
+          );
+        }
+
+        const conflict =
+          await Appointment.findOne({
+            _id: {
+              $ne:
+                appointment._id,
+            },
+            tutorId:
+              appointment.tutorId,
+            status: {
+              $in: [
+                'pending',
+                'confirmed',
+              ],
+            },
+            startTime: {
+              $lt: nextEnd,
+            },
+            endTime: {
+              $gt: nextStart,
+            },
+          }).select('_id');
+
+        if (conflict) {
+          return errorResponse(
+            res,
+            409,
+            'Khung giờ mới đã bị trùng với lịch học khác'
+          );
+        }
+
+        appointment.startTime =
+          nextStart;
+
+        appointment.endTime =
+          nextEnd;
+
+        appointment.totalAmount =
+          Math.round(
+            (
+              Number(
+                appointment.hourlyRate ||
+                  0
+              ) *
+              durationMinutes
+            ) / 60
+          );
       }
 
       await appointment.save();
@@ -1187,18 +1557,23 @@ app.put(
             'name email avatar subjects hourlyRate verified'
           );
 
-      res.json(populated);
+      res.json(
+        populated
+      );
     } catch (err) {
       errorResponse(
         res,
-        500,
-        'Lỗi cập nhật lịch học',
-        err
+        err.status || 500,
+        err.status
+          ? err.message
+          : 'Lỗi cập nhật lịch học',
+        err.status
+          ? null
+          : err
       );
     }
   }
 );
-
 // ============================================================
 // TUTOR REQUESTS
 // ============================================================
