@@ -1398,7 +1398,28 @@ function modalTemplate(type, data = {}) {
     'new-message': `<h2>Tin nhắn mới</h2><p>Bắt đầu một cuộc trò chuyện riêng tư trên TutorConnect.</p><div class="form-group"><label>Người nhận</label><input placeholder="Nhập tên gia sư hoặc học sinh" /></div><div class="form-group"><label>Tin nhắn</label><textarea placeholder="Viết lời nhắn của bạn..."></textarea></div><div class="modal-actions"><button class="cancel-button" data-close>Hủy</button><button class="primary-button" data-confirm="Tin nhắn đã được gửi">Gửi tin nhắn</button></div>`,
     'upload-document': `<h2>Tải tài liệu lên</h2><p>Lưu tài liệu an toàn trong không gian TutorConnect của bạn.</p><label class="upload-drop"><span style="font-size:23px">⇧</span><b>Kéo thả tệp vào đây</b><span>PDF, DOCX, XLSX · Tối đa 20 MB</span><input type="file" hidden /></label><div class="modal-actions"><button class="cancel-button" data-close>Hủy</button><button class="primary-button" data-confirm="Tài liệu đã được tải lên">Tải lên</button></div>`,
     'preview-document': `<div class="confirmation"><div class="confirmation-icon">▤</div><h2>Xem trước tài liệu</h2><p>Prototype đang mô phỏng trình xem tài liệu. Khi triển khai thực tế, khu vực này kết nối kho tệp bảo mật và quyền truy cập theo vai trò.</p><div class="modal-actions"><button class="primary-button" data-close>Đóng</button></div></div>`,
-    payment: `<h2>Nạp tiền vào TutorConnect</h2><p>Số dư dùng để thanh toán học phí nhanh chóng, an toàn.</p><div class="form-group"><label>Số tiền</label><input value="500.000" inputmode="numeric" /></div><div class="form-group"><label>Phương thức thanh toán</label><select><option>Thẻ ngân hàng nội địa</option><option>Ví MoMo</option><option>VNPay</option></select></div><div class="modal-actions"><button class="cancel-button" data-close>Hủy</button><button class="primary-button" data-confirm="Đã tạo yêu cầu thanh toán">Tiếp tục thanh toán</button></div>`,
+    payment: `
+      <h2>Thanh toán học phí qua QR Code</h2>
+      <p>Quét mã QR bằng ứng dụng ngân hàng hoặc Ví điện tử để hoàn tất thanh toán.</p>
+      
+      <div style="text-align: center; margin: 16px 0; padding: 16px; background: #f8f9fc; border-radius: 12px; border: 1px dashed #cbd5e1;">
+        <img src="https://img.vietqr.io/image/MB-0984566778-compact2.png?amount=320000&addInfo=HOCPHI%20ANLAM&accountName=TUTORMATE" 
+             alt="Mã QR Thanh Toán" 
+             style="width: 210px; height: 210px; max-width: 100%; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);" />
+        
+        <div style="font-size: 13px; text-align: left; background: #ffffff; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; line-height: 1.6;">
+          <p style="margin: 0;"><b>Ngân hàng:</b> MBBank (NHTCP Quân Đội)</p>
+          <p style="margin: 0;"><b>Chủ tài khoản:</b> TUTORMATE DEMO</p>
+          <p style="margin: 0;"><b>Số tài khoản:</b> 0987654321</p>
+          <p style="margin: 0;"><b>Số tiền:</b> <span style="color: #2563eb; font-weight: 700;">320.000đ</span></p>
+          <p style="margin: 0;"><b>Nội dung CK:</b> <span style="color: #ef4444; font-weight: 700;">HOCPHI ANLAM</span></p>
+        </div>
+      </div>
+      
+      <div class="modal-actions">
+        <button class="cancel-button" data-close>Hủy</button>
+        <button class="primary-button" data-confirm="Đã ghi nhận thanh toán! Đội ngũ TutorMate sẽ xác nhận giao dịch của bạn.">Xác nhận đã chuyển khoản</button>
+      </div>`,
     withdraw: `<h2>Rút thu nhập</h2><p>Số dư khả dụng: <b>8.450.000đ</b>. Giao dịch được xử lý trong 1–2 ngày làm việc.</p><div class="form-group"><label>Số tiền muốn rút</label><input value="8.450.000" inputmode="numeric" /></div><div class="form-group"><label>Tài khoản nhận tiền</label><select><option>Vietcombank · •••• 2486</option><option>Thêm tài khoản ngân hàng</option></select></div><div class="modal-actions"><button class="cancel-button" data-close>Hủy</button><button class="primary-button" data-confirm="Yêu cầu rút tiền đã được gửi">Gửi yêu cầu rút</button></div>`,
     'run-payout': `<h2>Tiến hành kỳ chi trả</h2><p>Hệ thống sẽ tạo lệnh thanh toán cho các gia sư đủ điều kiện trong kỳ tháng 8.</p><div class="form-group"><label>Chu kỳ chi trả</label><select><option>Kỳ 2 · Tháng 8/2026</option><option>Kỳ 1 · Tháng 9/2026</option></select></div><div class="form-group"><label>Tổng dự kiến</label><input value="96.200.000đ" disabled /></div><div class="modal-actions"><button class="cancel-button" data-close>Hủy</button><button class="primary-button" data-confirm="Đã tạo lệnh chi trả cho 42 gia sư">Tạo lệnh chi trả</button></div>`,
     'review-settings': `<h2>Cấu hình quy trình duyệt</h2><p>Thiết lập thời gian phản hồi và các tài liệu bắt buộc của gia sư.</p><div class="form-group"><label>Thời hạn xử lý hồ sơ</label><select><option>Trong 24 giờ</option><option>Trong 48 giờ</option></select></div><div class="form-group"><label>Tài liệu bắt buộc</label><select><option>CV + Bằng cấp + CCCD</option><option>CV + Bằng cấp</option></select></div><div class="modal-actions"><button class="cancel-button" data-close>Hủy</button><button class="primary-button" data-confirm="Cấu hình đã được lưu">Lưu thay đổi</button></div>`,

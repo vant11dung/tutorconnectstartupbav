@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
-  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=dnNhMtKCO-Q8Ai2XQUOPkIWvabh3-ToEORecZdNbH0bQhGVQCRsz5jB9KkTgqVkUsixAyDvUPgNzOLBRwV1G14oLfld0l7IIwlKAHCvjyum0hze73ZZWjnIPKzYDjntbPz693wPQbe104rKohuACNdsdP96JtmSq0ZZdR3owH3wKuXNU7z2HK10jdMxDltclmZn-1vz0GuRwpl7RlZitgSaaJZYm2Jm1MO4wZY1uIj0WRwwMyl5XpRZRD2bkEkEHRSulioKdqMdfAfOA-QskvqNaOQGQ7e68XHJFOIwP9JQ7GlFHTeTauVcCgtFHSPgCSmvOSr2ywzRqK80rcNBbvw" charset="UTF-8"></script></head>
+  </head>
   <body>
     <section class="auth-screen" id="authScreen" aria-label="Đăng nhập TutorConnect">
       <div class="auth-aside">
@@ -26,104 +26,49 @@
         <div class="auth-orb orb-one"></div><div class="auth-orb orb-two"></div>
       </div>
       <div class="auth-form-wrap">
-  <div class="auth-form">
-    <span class="auth-welcome">CHÀO MỪNG TRỞ LẠI</span>
-    <h2>Đăng nhập TutorConnect</h2>
-    
-    <!-- Ghi chú cho Thầy/Cô -->
-    <div class="demo-notice">
-      <p>💡 <b>Lưu ý trải nghiệm:</b> Vì là sản phẩm demo nên hệ thống chưa có dữ liệu học sinh & gia sư thực tế. Thầy/Cô vui lòng bấm chọn nhanh vai trò bên dưới để trải nghiệm các tính năng dễ dàng hơn!</p>
-    </div>
+        <div class="auth-form">
+          <span class="auth-welcome">CHÀO MỪNG TRỞ LẠI</span>
+          <h2>Đăng nhập TutorConnect</h2>
+          
+          <div class="demo-notice">
+            <p>💡 <b>Lưu ý trải nghiệm:</b> Vì là sản phẩm demo nên hệ thống chưa có dữ liệu học sinh & gia sư thực tế. Thầy/Cô vui lòng bấm chọn nhanh vai trò bên dưới để trải nghiệm các tính năng dễ dàng hơn!</p>
+          </div>
 
-    <!-- Chọn nhanh vai trò -->
-    <div class="demo-roles">
-      <button type="button" data-login-role="student"><i class="student-dot"></i> Học sinh</button>
-      <button type="button" data-login-role="tutor"><i class="tutor-dot"></i> Gia sư</button>
-      <button type="button" data-login-role="admin"><i class="admin-dot"></i> Quản trị</button>
-    </div>
+          <div class="demo-roles">
+            <button type="button" data-login-role="student"><i class="student-dot"></i> Học sinh</button>
+            <button type="button" data-login-role="tutor"><i class="tutor-dot"></i> Gia sư</button>
+            <button type="button" data-login-role="admin"><i class="admin-dot"></i> Quản trị</button>
+          </div>
 
-    <div class="auth-divider">hoặc đăng nhập bằng email</div>
+          <div class="auth-divider">hoặc đăng nhập bằng email</div>
 
-    <form id="loginForm">
-      <label>
-        Vai trò đăng nhập
-        <select id="loginRole">
-          <option value="student">Học sinh (An Lâm)</option>
-          <option value="tutor">Gia sư (Ngọc Mai)</option>
-          <option value="admin">Quản trị viên (Nguyễn Hoàng)</option>
-        </select>
-      </label>
-      <label>
-        Email / Số điện thoại
-        <span class="forgot-password">Quên mật khẩu?</span>
-        <input type="text" placeholder="demo@tutorconnect.vn" />
-      </label>
-      <label>
-        Mật khẩu
-        <input type="password" placeholder="••••••••" />
-      </label>
-      <button type="submit" class="auth-submit">
-        Vào ứng dụng <span>→</span>
-      </button>
-    </form>
-    <p class="auth-footer">Chưa có tài khoản? <a href="#">Đăng ký ngay</a></p>
-  </div>
-</div>
-        <div class="auth-form-wrap">
-  <div class="auth-form">
-    <span class="auth-welcome">CHÀO MỪNG TRỞ LẠI</span>
-    <h2>Đăng nhập TutorConnect</h2>
-    <p>Chọn vai trò trải nghiệm demo hoặc nhập thông tin tài khoản.</p>
-
-    <!-- Chọn nhanh vai trò để test (khớp với app.js) -->
-    <div class="demo-roles">
-      <button type="button" data-login-role="student">
-        <i class="student-dot"></i> Học sinh
-      </button>
-      <button type="button" data-login-role="tutor">
-        <i class="tutor-dot"></i> Gia sư
-      </button>
-      <button type="button" data-login-role="admin">
-        <i class="admin-dot"></i> Quản trị
-      </button>
-    </div>
-
-    <div class="auth-divider">hoặc đăng nhập bằng email</div>
-
-    <!-- Form đăng nhập (khớp id với app.js) -->
-    <form id="loginForm">
-      <label>
-        Vai trò đăng nhập
-        <select id="loginRole">
-          <option value="student">Học sinh (An Lâm)</option>
-          <option value="tutor">Gia sư (Ngọc Mai)</option>
-          <option value="admin">Quản trị viên (Nguyễn Hoàng)</option>
-        </select>
-      </label>
-
-      <label>
-        Email / Số điện thoại
-        <span class="forgot-password">Quên mật khẩu?</span>
-        <input type="text" placeholder="demo@tutorconnect.vn" />
-      </label>
-
-      <label>
-        Mật khẩu
-        <input type="password" placeholder="••••••••" />
-      </label>
-
-      <button type="submit" class="auth-submit">
-        Vào ứng dụng <span>→</span>
-      </button>
-    </form>
-
-    <p class="auth-footer">
-      Chưa có tài khoản? <a href="#">Đăng ký ngay</a>
-    </p>
-  </div>
-</div>
+          <form id="loginForm">
+            <label>
+              Vai trò đăng nhập
+              <select id="loginRole">
+                <option value="student">Học sinh (An Lâm)</option>
+                <option value="tutor">Gia sư (Ngọc Mai)</option>
+                <option value="admin">Quản trị viên (Nguyễn Hoàng)</option>
+              </select>
+            </label>
+            <label>
+              Email / Số điện thoại
+              <span class="forgot-password">Quên mật khẩu?</span>
+              <input type="text" placeholder="demo@tutorconnect.vn" />
+            </label>
+            <label>
+              Mật khẩu
+              <input type="password" placeholder="••••••••" />
+            </label>
+            <button type="submit" class="auth-submit">
+              Vào ứng dụng <span>→</span>
+            </button>
+          </form>
+          <p class="auth-footer">Chưa có tài khoản? <a href="#">Đăng ký ngay</a></p>
+        </div>
       </div>
     </section>
+    
     <div class="app-shell">
       <aside class="sidebar" aria-label="Thanh điều hướng">
         <a class="brand" href="#top" aria-label="TutorConnect về trang đầu">
