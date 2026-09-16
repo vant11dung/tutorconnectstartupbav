@@ -248,3 +248,42 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     background: rgba(245, 158, 11, 0.1);
   }
 }
+/* Đồng bộ font chữ tránh lỗi phông */
+.auth-form h2, .auth-copy h1 {
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+.auth-form, .auth-form input, .auth-form select, .auth-form label, .demo-roles button {
+  font-family: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+/* Khung ghi chú demo */
+.demo-notice {
+  background: #f0efff;
+  border: 1px solid #d6d3ff;
+  border-radius: 9px;
+  padding: 10px 12px;
+  margin: 10px 0 14px;
+}
+
+.demo-notice p {
+  margin: 0;
+  color: #4849a6;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.demo-notice b {
+  color: #38399d;
+}
+
+/* Nút đăng xuất */
+.logout-btn {
+  color: #ff8a98 !important;
+  margin-top: 2px;
+}
+
+.logout-btn:hover {
+  background: rgba(255, 124, 140, 0.12) !important;
+  color: #ff6e7f !important;
+}

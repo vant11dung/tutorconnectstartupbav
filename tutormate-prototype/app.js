@@ -1492,7 +1492,10 @@ $('#searchBtn')?.addEventListener('click', () => {
   setTimeout(() => $('#mapSearch')?.focus(), 40);
 });
 $('#helpBtn')?.addEventListener('click', () => openModal('new-message'));
-
+$('#logoutBtn')?.addEventListener('click', () => {
+  $('#authScreen')?.classList.remove('exit');
+  showToast('Đã đăng xuất khỏi hệ thống');
+});
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeModal();
   if (e.metaKey || e.ctrlKey) {

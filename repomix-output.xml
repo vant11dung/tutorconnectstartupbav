@@ -1770,114 +1770,6 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 </file>
 
-<file path="tutormate-prototype/index.html">
-<!doctype html>
-<html lang="vi">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#20214f" />
-    <title>TutorConnect — Nền tảng kết nối gia sư</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css" />
-  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=dnNhMtKCO-Q8Ai2XQUOPkIWvabh3-ToEORecZdNbH0bQhGVQCRsz5jB9KkTgqVkUsixAyDvUPgNzOLBRwV1G14oLfld0l7IIwlKAHCvjyum0hze73ZZWjnIPKzYDjntbPz693wPQbe104rKohuACNdsdP96JtmSq0ZZdR3owH3wKuXNU7z2HK10jdMxDltclmZn-1vz0GuRwpl7RlZitgSaaJZYm2Jm1MO4wZY1uIj0WRwwMyl5XpRZRD2bkEkEHRSulioKdqMdfAfOA-QskvqNaOQGQ7e68XHJFOIwP9JQ7GlFHTeTauVcCgtFHSPgCSmvOSr2ywzRqK80rcNBbvw" charset="UTF-8"></script></head>
-  <body>
-    <section class="auth-screen" id="authScreen" aria-label="Đăng nhập TutorConnect">
-      <div class="auth-aside">
-        <a class="brand auth-brand" href="#" aria-label="TutorConnect">
-          <span class="brand-mark"><span></span><span></span><span></span></span>
-          <span>Tutor<span>Mate</span></span>
-        </a>
-        <div class="auth-copy">
-          <p class="auth-eyebrow">HỌC ĐÚNG NGƯỜI · TIẾN BỘ MỖI NGÀY</p>
-          <h1>Nơi việc dạy và học gặp đúng kết nối.</h1>
-          <p>TutorConnect kết nối học sinh, gia sư và phụ huynh trong một không gian tin cậy, minh bạch và hiệu quả.</p>
-        </div>
-        <div class="auth-quote"><span>“</span><p>Từ khi dùng TutorConnect, con tôi chủ động hơn và việc theo dõi lịch học cũng nhẹ nhàng hơn rất nhiều.</p><div><b>Chị Thanh Hà</b><small>Phụ huynh học sinh lớp 10</small></div></div>
-        <div class="auth-orb orb-one"></div><div class="auth-orb orb-two"></div>
-      </div>
-      <div class="auth-form-wrap">
-        <div class="auth-form">
-        </div>
-      </div>
-    </section>
-    <div class="app-shell">
-      <aside class="sidebar" aria-label="Thanh điều hướng">
-        <a class="brand" href="#top" aria-label="TutorConnect về trang đầu">
-          <span class="brand-mark"><span></span><span></span><span></span></span>
-          <span>Tutor<span>Mate</span></span>
-        </a>
-
-        <div class="workspace-switcher">
-          <button class="current-workspace" id="roleMenuButton" aria-expanded="false">
-            <span class="avatar avatar-user">AL</span>
-            <span><b id="workspaceTitle">Không gian học sinh</b><small id="workspacePerson">An Lâm</small></span>
-            <span class="chevron">⌄</span>
-          </button>
-          <div class="role-menu" id="roleMenu">
-            <button data-role="student"><span class="role-dot student-dot"></span> Học sinh <em>⌘1</em></button>
-            <button data-role="tutor"><span class="role-dot tutor-dot"></span> Gia sư <em>⌘2</em></button>
-            <button data-role="admin"><span class="role-dot admin-dot"></span> Quản trị viên <em>⌘3</em></button>
-          </div>
-        </div>
-
-        <nav id="mainNav" class="main-nav">
-          <p class="nav-label">KHÔNG GIAN CỦA BẠN</p>
-        </nav>
-
-        <div class="sidebar-bottom">
-          <button class="side-link" id="helpBtn"><span>◌</span> Trung tâm hỗ trợ</button>
-          <button class="side-link"><span>⚙</span> Cài đặt</button>
-          <div class="upgrade-card">
-            <span class="sparkle">✦</span>
-            <div>
-              <b>Học thông minh hơn</b>
-              <p>Khám phá TutorConnect Plus</p>
-            </div>
-            <button class="round-arrow" aria-label="Tìm hiểu thêm">→</button>
-          </div>
-        </div>
-      </aside>
-
-      <main class="main-content" id="top">
-        <header class="topbar">
-          <button class="mobile-menu" id="mobileMenu" aria-label="Mở menu">☰</button>
-          <div class="breadcrumb"><span id="breadcrumbRole">Không gian học sinh</span><strong>/</strong><span id="breadcrumbPage">Tổng quan</span></div>
-          <div class="top-actions">
-            <button class="icon-button" id="searchBtn" aria-label="Tìm kiếm">⌕</button>
-            <button class="icon-button notification" id="notificationBtn" aria-label="Thông báo">♧<i></i></button>
-            <button class="top-avatar avatar avatar-user" id="profileBtn" aria-label="Hồ sơ">AL</button>
-          </div>
-        </header>
-
-        <section class="view active" id="view-dashboard"></section>
-        <section class="view" id="view-explore"></section>
-        <section class="view" id="view-calendar"></section>
-        <section class="view" id="view-messages"></section>
-        <section class="view" id="view-classroom"></section>
-        <section class="view" id="view-coach"></section>
-        <section class="view" id="view-documents"></section>
-        <section class="view" id="view-finance"></section>
-        <section class="view" id="view-admin-review"></section>
-      </main>
-    </div>
-
-    <div class="toast" id="toast" role="status"><span>✓</span><p id="toastText">Đã cập nhật thành công</p></div>
-
-    <div class="modal-backdrop" id="modalBackdrop" aria-hidden="true">
-      <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-        <button class="close-modal" id="closeModal" aria-label="Đóng">×</button>
-        <div id="modalContent"></div>
-      </div>
-    </div>
-
-    <script src="app.js"></script>
-  </body>
-</html>
-</file>
-
 <file path="tutormate-prototype/styles.css">
 :root {
   --ink: #24264a;
@@ -2129,6 +2021,248 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     background: rgba(245, 158, 11, 0.1);
   }
 }
+/* Đồng bộ font chữ tránh lỗi phông */
+.auth-form h2, .auth-copy h1 {
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+.auth-form, .auth-form input, .auth-form select, .auth-form label, .demo-roles button {
+  font-family: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+/* Khung ghi chú demo */
+.demo-notice {
+  background: #f0efff;
+  border: 1px solid #d6d3ff;
+  border-radius: 9px;
+  padding: 10px 12px;
+  margin: 10px 0 14px;
+}
+
+.demo-notice p {
+  margin: 0;
+  color: #4849a6;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.demo-notice b {
+  color: #38399d;
+}
+
+/* Nút đăng xuất */
+.logout-btn {
+  color: #ff8a98 !important;
+  margin-top: 2px;
+}
+
+.logout-btn:hover {
+  background: rgba(255, 124, 140, 0.12) !important;
+  color: #ff6e7f !important;
+}
+</file>
+
+<file path="tutormate-prototype/index.html">
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#20214f" />
+    <title>TutorConnect — Nền tảng kết nối gia sư</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=dnNhMtKCO-Q8Ai2XQUOPkIWvabh3-ToEORecZdNbH0bQhGVQCRsz5jB9KkTgqVkUsixAyDvUPgNzOLBRwV1G14oLfld0l7IIwlKAHCvjyum0hze73ZZWjnIPKzYDjntbPz693wPQbe104rKohuACNdsdP96JtmSq0ZZdR3owH3wKuXNU7z2HK10jdMxDltclmZn-1vz0GuRwpl7RlZitgSaaJZYm2Jm1MO4wZY1uIj0WRwwMyl5XpRZRD2bkEkEHRSulioKdqMdfAfOA-QskvqNaOQGQ7e68XHJFOIwP9JQ7GlFHTeTauVcCgtFHSPgCSmvOSr2ywzRqK80rcNBbvw" charset="UTF-8"></script></head>
+  <body>
+    <section class="auth-screen" id="authScreen" aria-label="Đăng nhập TutorConnect">
+      <div class="auth-aside">
+        <a class="brand auth-brand" href="#" aria-label="TutorConnect">
+          <span class="brand-mark"><span></span><span></span><span></span></span>
+          <span>Tutor<span>Mate</span></span>
+        </a>
+        <div class="auth-copy">
+          <p class="auth-eyebrow">HỌC ĐÚNG NGƯỜI · TIẾN BỘ MỖI NGÀY</p>
+          <h1>Nơi việc dạy và học gặp đúng kết nối.</h1>
+          <p>TutorConnect kết nối học sinh, gia sư và phụ huynh trong một không gian tin cậy, minh bạch và hiệu quả.</p>
+        </div>
+        <div class="auth-quote"><span>“</span><p>Từ khi dùng TutorConnect, con tôi chủ động hơn và việc theo dõi lịch học cũng nhẹ nhàng hơn rất nhiều.</p><div><b>Chị Thanh Hà</b><small>Phụ huynh học sinh lớp 10</small></div></div>
+        <div class="auth-orb orb-one"></div><div class="auth-orb orb-two"></div>
+      </div>
+      <div class="auth-form-wrap">
+  <div class="auth-form">
+    <span class="auth-welcome">CHÀO MỪNG TRỞ LẠI</span>
+    <h2>Đăng nhập TutorConnect</h2>
+    
+    <!-- Ghi chú cho Thầy/Cô -->
+    <div class="demo-notice">
+      <p>💡 <b>Lưu ý trải nghiệm:</b> Vì là sản phẩm demo nên hệ thống chưa có dữ liệu học sinh & gia sư thực tế. Thầy/Cô vui lòng bấm chọn nhanh vai trò bên dưới để trải nghiệm các tính năng dễ dàng hơn!</p>
+    </div>
+
+    <!-- Chọn nhanh vai trò -->
+    <div class="demo-roles">
+      <button type="button" data-login-role="student"><i class="student-dot"></i> Học sinh</button>
+      <button type="button" data-login-role="tutor"><i class="tutor-dot"></i> Gia sư</button>
+      <button type="button" data-login-role="admin"><i class="admin-dot"></i> Quản trị</button>
+    </div>
+
+    <div class="auth-divider">hoặc đăng nhập bằng email</div>
+
+    <form id="loginForm">
+      <label>
+        Vai trò đăng nhập
+        <select id="loginRole">
+          <option value="student">Học sinh (An Lâm)</option>
+          <option value="tutor">Gia sư (Ngọc Mai)</option>
+          <option value="admin">Quản trị viên (Nguyễn Hoàng)</option>
+        </select>
+      </label>
+      <label>
+        Email / Số điện thoại
+        <span class="forgot-password">Quên mật khẩu?</span>
+        <input type="text" placeholder="demo@tutorconnect.vn" />
+      </label>
+      <label>
+        Mật khẩu
+        <input type="password" placeholder="••••••••" />
+      </label>
+      <button type="submit" class="auth-submit">
+        Vào ứng dụng <span>→</span>
+      </button>
+    </form>
+    <p class="auth-footer">Chưa có tài khoản? <a href="#">Đăng ký ngay</a></p>
+  </div>
+</div>
+        <div class="auth-form-wrap">
+  <div class="auth-form">
+    <span class="auth-welcome">CHÀO MỪNG TRỞ LẠI</span>
+    <h2>Đăng nhập TutorConnect</h2>
+    <p>Chọn vai trò trải nghiệm demo hoặc nhập thông tin tài khoản.</p>
+
+    <!-- Chọn nhanh vai trò để test (khớp với app.js) -->
+    <div class="demo-roles">
+      <button type="button" data-login-role="student">
+        <i class="student-dot"></i> Học sinh
+      </button>
+      <button type="button" data-login-role="tutor">
+        <i class="tutor-dot"></i> Gia sư
+      </button>
+      <button type="button" data-login-role="admin">
+        <i class="admin-dot"></i> Quản trị
+      </button>
+    </div>
+
+    <div class="auth-divider">hoặc đăng nhập bằng email</div>
+
+    <!-- Form đăng nhập (khớp id với app.js) -->
+    <form id="loginForm">
+      <label>
+        Vai trò đăng nhập
+        <select id="loginRole">
+          <option value="student">Học sinh (An Lâm)</option>
+          <option value="tutor">Gia sư (Ngọc Mai)</option>
+          <option value="admin">Quản trị viên (Nguyễn Hoàng)</option>
+        </select>
+      </label>
+
+      <label>
+        Email / Số điện thoại
+        <span class="forgot-password">Quên mật khẩu?</span>
+        <input type="text" placeholder="demo@tutorconnect.vn" />
+      </label>
+
+      <label>
+        Mật khẩu
+        <input type="password" placeholder="••••••••" />
+      </label>
+
+      <button type="submit" class="auth-submit">
+        Vào ứng dụng <span>→</span>
+      </button>
+    </form>
+
+    <p class="auth-footer">
+      Chưa có tài khoản? <a href="#">Đăng ký ngay</a>
+    </p>
+  </div>
+</div>
+      </div>
+    </section>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Thanh điều hướng">
+        <a class="brand" href="#top" aria-label="TutorConnect về trang đầu">
+          <span class="brand-mark"><span></span><span></span><span></span></span>
+          <span>Tutor<span>Mate</span></span>
+        </a>
+
+        <div class="workspace-switcher">
+          <button class="current-workspace" id="roleMenuButton" aria-expanded="false">
+            <span class="avatar avatar-user">AL</span>
+            <span><b id="workspaceTitle">Không gian học sinh</b><small id="workspacePerson">An Lâm</small></span>
+            <span class="chevron">⌄</span>
+          </button>
+          <div class="role-menu" id="roleMenu">
+            <button data-role="student"><span class="role-dot student-dot"></span> Học sinh <em>⌘1</em></button>
+            <button data-role="tutor"><span class="role-dot tutor-dot"></span> Gia sư <em>⌘2</em></button>
+            <button data-role="admin"><span class="role-dot admin-dot"></span> Quản trị viên <em>⌘3</em></button>
+          </div>
+        </div>
+
+        <nav id="mainNav" class="main-nav">
+          <p class="nav-label">KHÔNG GIAN CỦA BẠN</p>
+        </nav>
+
+        <div class="sidebar-bottom">
+          <button class="side-link" id="helpBtn"><span>◌</span> Trung tâm hỗ trợ</button>
+          <button class="side-link"><span>⚙</span> Cài đặt</button>
+          <button class="side-link logout-btn" id="logoutBtn"><span>↪</span> Đăng xuất</button>
+          <div class="upgrade-card">
+            <span class="sparkle">✦</span>
+            <div>
+              <b>Học thông minh hơn</b>
+              <p>Khám phá TutorConnect Plus</p>
+            </div>
+            <button class="round-arrow" aria-label="Tìm hiểu thêm">→</button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content" id="top">
+        <header class="topbar">
+          <button class="mobile-menu" id="mobileMenu" aria-label="Mở menu">☰</button>
+          <div class="breadcrumb"><span id="breadcrumbRole">Không gian học sinh</span><strong>/</strong><span id="breadcrumbPage">Tổng quan</span></div>
+          <div class="top-actions">
+            <button class="icon-button" id="searchBtn" aria-label="Tìm kiếm">⌕</button>
+            <button class="icon-button notification" id="notificationBtn" aria-label="Thông báo">♧<i></i></button>
+            <button class="top-avatar avatar avatar-user" id="profileBtn" aria-label="Hồ sơ">AL</button>
+          </div>
+        </header>
+
+        <section class="view active" id="view-dashboard"></section>
+        <section class="view" id="view-explore"></section>
+        <section class="view" id="view-calendar"></section>
+        <section class="view" id="view-messages"></section>
+        <section class="view" id="view-classroom"></section>
+        <section class="view" id="view-coach"></section>
+        <section class="view" id="view-documents"></section>
+        <section class="view" id="view-finance"></section>
+        <section class="view" id="view-admin-review"></section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status"><span>✓</span><p id="toastText">Đã cập nhật thành công</p></div>
+
+    <div class="modal-backdrop" id="modalBackdrop" aria-hidden="true">
+      <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <button class="close-modal" id="closeModal" aria-label="Đóng">×</button>
+        <div id="modalContent"></div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
 </file>
 
 <file path="tutormate-backend/server.js">
@@ -7088,7 +7222,10 @@ $('#searchBtn')?.addEventListener('click', () => {
   setTimeout(() => $('#mapSearch')?.focus(), 40);
 });
 $('#helpBtn')?.addEventListener('click', () => openModal('new-message'));
-
+$('#logoutBtn')?.addEventListener('click', () => {
+  $('#authScreen')?.classList.remove('exit');
+  showToast('Đã đăng xuất khỏi hệ thống');
+});
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeModal();
   if (e.metaKey || e.ctrlKey) {

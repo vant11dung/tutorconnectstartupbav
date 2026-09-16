@@ -26,6 +26,49 @@
         <div class="auth-orb orb-one"></div><div class="auth-orb orb-two"></div>
       </div>
       <div class="auth-form-wrap">
+  <div class="auth-form">
+    <span class="auth-welcome">CHÀO MỪNG TRỞ LẠI</span>
+    <h2>Đăng nhập TutorConnect</h2>
+    
+    <!-- Ghi chú cho Thầy/Cô -->
+    <div class="demo-notice">
+      <p>💡 <b>Lưu ý trải nghiệm:</b> Vì là sản phẩm demo nên hệ thống chưa có dữ liệu học sinh & gia sư thực tế. Thầy/Cô vui lòng bấm chọn nhanh vai trò bên dưới để trải nghiệm các tính năng dễ dàng hơn!</p>
+    </div>
+
+    <!-- Chọn nhanh vai trò -->
+    <div class="demo-roles">
+      <button type="button" data-login-role="student"><i class="student-dot"></i> Học sinh</button>
+      <button type="button" data-login-role="tutor"><i class="tutor-dot"></i> Gia sư</button>
+      <button type="button" data-login-role="admin"><i class="admin-dot"></i> Quản trị</button>
+    </div>
+
+    <div class="auth-divider">hoặc đăng nhập bằng email</div>
+
+    <form id="loginForm">
+      <label>
+        Vai trò đăng nhập
+        <select id="loginRole">
+          <option value="student">Học sinh (An Lâm)</option>
+          <option value="tutor">Gia sư (Ngọc Mai)</option>
+          <option value="admin">Quản trị viên (Nguyễn Hoàng)</option>
+        </select>
+      </label>
+      <label>
+        Email / Số điện thoại
+        <span class="forgot-password">Quên mật khẩu?</span>
+        <input type="text" placeholder="demo@tutorconnect.vn" />
+      </label>
+      <label>
+        Mật khẩu
+        <input type="password" placeholder="••••••••" />
+      </label>
+      <button type="submit" class="auth-submit">
+        Vào ứng dụng <span>→</span>
+      </button>
+    </form>
+    <p class="auth-footer">Chưa có tài khoản? <a href="#">Đăng ký ngay</a></p>
+  </div>
+</div>
         <div class="auth-form-wrap">
   <div class="auth-form">
     <span class="auth-welcome">CHÀO MỪNG TRỞ LẠI</span>
@@ -108,6 +151,7 @@
         <div class="sidebar-bottom">
           <button class="side-link" id="helpBtn"><span>◌</span> Trung tâm hỗ trợ</button>
           <button class="side-link"><span>⚙</span> Cài đặt</button>
+          <button class="side-link logout-btn" id="logoutBtn"><span>↪</span> Đăng xuất</button>
           <div class="upgrade-card">
             <span class="sparkle">✦</span>
             <div>
