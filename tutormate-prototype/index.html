@@ -26,8 +26,59 @@
         <div class="auth-orb orb-one"></div><div class="auth-orb orb-two"></div>
       </div>
       <div class="auth-form-wrap">
-        <div class="auth-form">
-        </div>
+        <div class="auth-form-wrap">
+  <div class="auth-form">
+    <span class="auth-welcome">CHÀO MỪNG TRỞ LẠI</span>
+    <h2>Đăng nhập TutorConnect</h2>
+    <p>Chọn vai trò trải nghiệm demo hoặc nhập thông tin tài khoản.</p>
+
+    <!-- Chọn nhanh vai trò để test (khớp với app.js) -->
+    <div class="demo-roles">
+      <button type="button" data-login-role="student">
+        <i class="student-dot"></i> Học sinh
+      </button>
+      <button type="button" data-login-role="tutor">
+        <i class="tutor-dot"></i> Gia sư
+      </button>
+      <button type="button" data-login-role="admin">
+        <i class="admin-dot"></i> Quản trị
+      </button>
+    </div>
+
+    <div class="auth-divider">hoặc đăng nhập bằng email</div>
+
+    <!-- Form đăng nhập (khớp id với app.js) -->
+    <form id="loginForm">
+      <label>
+        Vai trò đăng nhập
+        <select id="loginRole">
+          <option value="student">Học sinh (An Lâm)</option>
+          <option value="tutor">Gia sư (Ngọc Mai)</option>
+          <option value="admin">Quản trị viên (Nguyễn Hoàng)</option>
+        </select>
+      </label>
+
+      <label>
+        Email / Số điện thoại
+        <span class="forgot-password">Quên mật khẩu?</span>
+        <input type="text" placeholder="demo@tutorconnect.vn" />
+      </label>
+
+      <label>
+        Mật khẩu
+        <input type="password" placeholder="••••••••" />
+      </label>
+
+      <button type="submit" class="auth-submit">
+        Vào ứng dụng <span>→</span>
+      </button>
+    </form>
+
+    <p class="auth-footer">
+      Chưa có tài khoản? <a href="#">Đăng ký ngay</a>
+    </p>
+  </div>
+</div>
       </div>
     </section>
     <div class="app-shell">
