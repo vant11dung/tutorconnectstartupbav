@@ -52,7 +52,110 @@ const API_BASE_URL =
     ? 'http://localhost:5000/api'
     : 'https://tutorconnectstartupbav.onrender.com/api';
 
+/* =========================================================
+   DEMO ACCOUNTS - Tài khoản demo cho giám khảo
+========================================================= */
 
+const DEMO_ACCOUNTS = {
+  student: {
+    id: 'demo-student-001',
+    _id: 'demo-student-001',
+    email: 'demo.student@tutormate.com',
+    password: 'demo@123',
+    name: 'Lâm An',
+    role: 'student',
+    avatar: 'AL',
+    bio: 'Tôi là một học sinh lớp 10, đang tìm kiếm gia sư để cải thiện kỹ năng toán học và tiếng Anh.',
+    subjects: ['Toán', 'Tiếng Anh'],
+    hourlyRate: 0,
+    location: 'Hà Nội',
+    verified: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  tutor: {
+    id: 'demo-tutor-001',
+    _id: 'demo-tutor-001',
+    email: 'demo.tutor@tutormate.com',
+    password: 'demo@123',
+    name: 'Ngọc Mai',
+    role: 'tutor',
+    avatar: 'NM',
+    bio: 'Gia sư có 5 năm kinh nghiệm giảng dạy Toán, Tiếng Anh và Lý cho học sinh cấp 2 và cấp 3. Đạt chứng chỉ TOEFL và có phương pháp giảng dạy hiệu quả.',
+    subjects: ['Toán', 'Tiếng Anh', 'Lý'],
+    hourlyRate: 150000,
+    location: 'Hà Nội',
+    verified: true,
+    availability: [
+      { dayOfWeek: 1, startTime: '09:00', endTime: '12:00' },
+      { dayOfWeek: 1, startTime: '14:00', endTime: '18:00' },
+      { dayOfWeek: 3, startTime: '09:00', endTime: '12:00' },
+      { dayOfWeek: 5, startTime: '14:00', endTime: '18:00' },
+      { dayOfWeek: 6, startTime: '10:00', endTime: '16:00' }
+    ],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  admin: {
+    id: 'demo-admin-001',
+    _id: 'demo-admin-001',
+    email: 'demo.admin@tutormate.com',
+    password: 'demo@123',
+    name: 'Nguyễn Hoàng',
+    role: 'admin',
+    avatar: 'NH',
+    bio: 'Admin hệ thống TutorMate. Quản lý duyệt gia sư, xử lý khiếu nại và giám sát các lớp học.',
+    subjects: [],
+    hourlyRate: 0,
+    location: 'Hà Nội',
+    verified: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }
+};
+
+// Hàm kiểm tra nếu email là demo account
+function isDemoAccount(email) {
+  return Object.values(DEMO_ACCOUNTS).some(acc => acc.email === email);
+}
+
+// Lấy demo account từ email
+function getDemoAccount(email) {
+  return Object.values(DEMO_ACCOUNTS).find(acc => acc.email === email);
+}
+
+// Hàm demo login
+function demoDemoLogin(role) {
+  const demoAccount = DEMO_ACCOUNTS[role];
+  
+  if (!demoAccount) {
+    showToast('❌ Tài khoản demo không tồn tại');
+    return;
+  }
+
+  try {
+    // Giả lập login bằng dữ liệu demo
+    saveToken('demo_token_' + role + '_' + Date.now());
+    saveCurrentUser(demoAccount);
+
+    state.currentUser = demoAccount;
+    state.role = role;
+
+    showAuthScreen(false);
+    applyIdentity();
+    renderNav();
+
+    // Nếu có fetchViewData, gọi nó (có thể bỏ qua nếu không cần):
+    // await fetchViewData();
+    
+    renderAllViews();
+    navigateWithoutFetch('dashboard');
+
+    showToast(`✅ Đăng nhập demo thành công: ${demoAccount.name}`);
+  } catch (error) {
+    showToast(`❌ Lỗi: ${error.message}`);
+  }
+}
 /* =========================================================
    DOM HELPERS
 ========================================================= */
@@ -341,7 +444,36 @@ async function getAppointment(id) {
     `/appointments/${encodeURIComponent(id)}`
   );
 }
-
+async function getTutorAvailability(
+  tutorId,
+  date
+) {
+  return apiCall(
+    `/tutors/${encodeURIComponent(
+      tutorId
+    )}/availability?date=${encodeURIComponent(
+      date
+    )}`
+  );
+}
+async function getMyAvailability() {
+  return apiCall(
+    '/users/me/availability'
+  );
+}
+async function updateMyAvailability(
+  availability
+) {
+  return apiCall(
+    '/users/me/availability',
+    {
+      method: 'PUT',
+      body: JSON.stringify({
+        availability,
+      }),
+    }
+  );
+}
 async function createAppointment(
   tutorId,
   subject,
@@ -4230,26 +4362,26 @@ function closeModal() {
 function renderLoginForm() {
   const authForm =
     document.querySelector('.auth-form');
-
+ 
   if (!authForm) {
     return;
   }
-
+ 
   authForm.innerHTML = `
     <span class="auth-welcome">
       CHÀO MỪNG TRỞ LẠI
     </span>
-
+ 
     <h2>
       Đăng nhập vào TutorConnect
     </h2>
-
+ 
     <p>
       Tiếp tục hành trình dạy và học của bạn.
     </p>
-
+ 
     <form id="loginForm">
-
+ 
       <label>
         Email
         <input
@@ -4260,7 +4392,7 @@ function renderLoginForm() {
           required
         />
       </label>
-
+ 
       <label>
         Mật khẩu
         <input
@@ -4271,7 +4403,7 @@ function renderLoginForm() {
           required
         />
       </label>
-
+ 
       <button
         class="auth-submit"
         type="submit"
@@ -4279,49 +4411,88 @@ function renderLoginForm() {
         Đăng nhập
         <span>→</span>
       </button>
-
+ 
     </form>
-
+ 
     <div class="auth-footer">
       Chưa có tài khoản?
-      <a
-        href="#"
-        id="showRegister"
-      >
+      <a href="#" id="showRegister">
         Đăng ký miễn phí
       </a>
     </div>
+ 
+    <div class="demo-section">
+      <p class="demo-label">👀 Xem Demo</p>
+      <div class="demo-buttons">
+        <button type="button" class="demo-btn demo-student" id="demoBtnStudent">
+          <span>📚</span>
+          <div>
+            <strong>Demo Học sinh</strong>
+            <small>demo.student@tutormate.com</small>
+          </div>
+        </button>
+        <button type="button" class="demo-btn demo-tutor" id="demoBtnTutor">
+          <span>👨‍🏫</span>
+          <div>
+            <strong>Demo Gia sư</strong>
+            <small>demo.tutor@tutormate.com</small>
+          </div>
+        </button>
+        <button type="button" class="demo-btn demo-admin" id="demoBtnAdmin">
+          <span>⚙️</span>
+          <div>
+            <strong>Demo Admin</strong>
+            <small>demo.admin@tutormate.com</small>
+          </div>
+        </button>
+      </div>
+    </div>
   `;
-
+ 
   $('#loginForm')?.addEventListener(
     'submit',
     async (event) => {
       event.preventDefault();
-
+ 
       const email =
         $('#loginEmail')
           ?.value
           .trim();
-
+ 
       const password =
         $('#loginPassword')
           ?.value;
-
+ 
       await startLogin(
         email,
         password
       );
     }
   );
-
+ 
   $('#showRegister')?.addEventListener(
     'click',
     (event) => {
       event.preventDefault();
-
       renderRegisterForm();
     }
   );
+ 
+  // Demo buttons
+  $('#demoBtnStudent')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    demoDemoLogin('student');
+  });
+ 
+  $('#demoBtnTutor')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    demoDemoLogin('tutor');
+  });
+ 
+  $('#demoBtnAdmin')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    demoDemoLogin('admin');
+  });
 }
 
 
@@ -4332,26 +4503,26 @@ function renderLoginForm() {
 function renderRegisterForm() {
   const authForm =
     document.querySelector('.auth-form');
-
+ 
   if (!authForm) {
     return;
   }
-
+ 
   authForm.innerHTML = `
     <span class="auth-welcome">
       THAM GIA TUTORMATE
     </span>
-
+ 
     <h2>
       Tạo tài khoản
     </h2>
-
+ 
     <p>
       Đăng ký miễn phí để bắt đầu hành trình của bạn.
     </p>
-
+ 
     <form id="registerForm">
-
+ 
       <label>
         Họ và tên
         <input
@@ -4362,7 +4533,7 @@ function renderRegisterForm() {
           required
         />
       </label>
-
+ 
       <label>
         Email
         <input
@@ -4373,7 +4544,7 @@ function renderRegisterForm() {
           required
         />
       </label>
-
+ 
       <label>
         Mật khẩu
         <input
@@ -4385,7 +4556,7 @@ function renderRegisterForm() {
           required
         />
       </label>
-
+ 
       <label>
         Bạn là
         <select
@@ -4395,13 +4566,13 @@ function renderRegisterForm() {
           <option value="student">
             Học sinh
           </option>
-
+ 
           <option value="tutor">
             Gia sư
           </option>
         </select>
       </label>
-
+ 
       <button
         class="auth-submit"
         type="submit"
@@ -4409,9 +4580,9 @@ function renderRegisterForm() {
         Tạo tài khoản
         <span>→</span>
       </button>
-
+ 
     </form>
-
+ 
     <div class="auth-footer">
       Đã có tài khoản?
       <a
@@ -4421,31 +4592,51 @@ function renderRegisterForm() {
         Đăng nhập
       </a>
     </div>
+ 
+    <div class="demo-section">
+      <p class="demo-label">👀 Xem Demo Trước Khi Đăng Ký</p>
+      <div class="demo-buttons">
+        <button type="button" class="demo-btn demo-student" id="demoBtnStudentReg">
+          <span>📚</span>
+          <div>
+            <strong>Demo Học sinh</strong>
+            <small>demo.student@tutormate.com</small>
+          </div>
+        </button>
+        <button type="button" class="demo-btn demo-tutor" id="demoBtnTutorReg">
+          <span>👨‍🏫</span>
+          <div>
+            <strong>Demo Gia sư</strong>
+            <small>demo.tutor@tutormate.com</small>
+          </div>
+        </button>
+      </div>
+    </div>
   `;
-
+ 
   $('#registerForm')?.addEventListener(
     'submit',
     async (event) => {
       event.preventDefault();
-
+ 
       const name =
         $('#registerName')
           ?.value
           .trim();
-
+ 
       const email =
         $('#registerEmail')
           ?.value
           .trim();
-
+ 
       const password =
         $('#registerPassword')
           ?.value;
-
+ 
       const role =
         $('#registerRole')
           ?.value;
-
+ 
       if (
         !name ||
         !email ||
@@ -4455,20 +4646,20 @@ function renderRegisterForm() {
         showToast(
           'Vui lòng nhập đầy đủ thông tin.'
         );
-
+ 
         return;
       }
-
+ 
       if (
         password.length < 6
       ) {
         showToast(
           'Mật khẩu phải có ít nhất 6 ký tự.'
         );
-
+ 
         return;
       }
-
+ 
       await startRegister(
         name,
         email,
@@ -4477,15 +4668,25 @@ function renderRegisterForm() {
       );
     }
   );
-
+ 
   $('#showLogin')?.addEventListener(
     'click',
     (event) => {
       event.preventDefault();
-
       renderLoginForm();
     }
   );
+ 
+  // Demo buttons (Register form)
+  $('#demoBtnStudentReg')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    demoDemoLogin('student');
+  });
+ 
+  $('#demoBtnTutorReg')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    demoDemoLogin('tutor');
+  });
 }
 
 
@@ -5094,6 +5295,9 @@ if (
     getTutorRequests,
     createTutorRequest,
     updateTutorRequest,
+    getTutorAvailability,
+    getMyAvailability,
+    updateMyAvailability,
 
     getMessages,
     sendMessage,

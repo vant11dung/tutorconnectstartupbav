@@ -91,6 +91,40 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+        // ========================================================
+    // TUTOR AVAILABILITY
+    // Lịch rảnh lặp lại hàng tuần của gia sư.
+    // dayOfWeek:
+    // 0 = Chủ nhật
+    // 1 = Thứ 2
+    // ...
+    // 6 = Thứ 7
+    // ========================================================
+    availability: {
+      type: [
+        {
+          dayOfWeek: {
+            type: Number,
+            min: 0,
+            max: 6,
+            required: true,
+          },
+
+          startTime: {
+            type: String,
+            required: true,
+            match: /^([01]\d|2[0-3]):[0-5]\d$/,
+          },
+
+          endTime: {
+            type: String,
+            required: true,
+            match: /^([01]\d|2[0-3]):[0-5]\d$/,
+          },
+        },
+      ],
+      default: [],
+    },
   },
   {
     timestamps: true,
@@ -365,6 +399,8 @@ function publicUser(user) {
     hourlyRate: user.hourlyRate,
     location: user.location,
     verified: user.verified,
+    availability:
+      user.availability || [],
   };
 }
 
@@ -430,6 +466,597 @@ function requireRole(...roles) {
     next();
   };
 }
+// ============================================================
+// TUTOR AVAILABILITY
+// ============================================================
+
+function timeToMinutes(
+  time
+) {
+  const [
+    hours,
+    minutes,
+  ] = String(time)
+    .split(':')
+    .map(Number);
+
+  return (
+    hours * 60 +
+    minutes
+  );
+}
+
+function minutesToTime(
+  totalMinutes
+) {
+  const hours =
+    Math.floor(
+      totalMinutes / 60
+    );
+
+  const minutes =
+    totalMinutes % 60;
+
+  return (
+    String(hours).padStart(2, '0') +
+    ':' +
+    String(minutes).padStart(2, '0')
+  );
+}
+
+
+// ============================================================
+// GET AVAILABLE SLOTS
+// GET /api/tutors/:tutorId/availability?date=YYYY-MM-DD
+// ============================================================
+app.get(
+  '/api/tutors/:tutorId/availability',
+  authenticate,
+  async (req, res) => {
+    try {
+      requireObjectId(
+        req.params.tutorId,
+        'Tutor ID'
+      );
+
+      const {
+        date,
+      } = req.query;
+
+      if (
+        !date ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(
+          String(date)
+        )
+      ) {
+        return errorResponse(
+          res,
+          400,
+          'Date phải có định dạng YYYY-MM-DD'
+        );
+      }
+
+      const tutor =
+        await User.findOne({
+          _id:
+            req.params.tutorId,
+          role: 'tutor',
+        }).lean();
+
+      if (!tutor) {
+        return errorResponse(
+          res,
+          404,
+          'Không tìm thấy gia sư'
+        );
+      }
+
+      const availability =
+        Array.isArray(
+          tutor.availability
+        )
+          ? tutor.availability
+          : [];
+
+      if (!availability.length) {
+        return res.json({
+          tutorId:
+            String(tutor._id),
+          date,
+          slots: [],
+        });
+      }
+
+      /*
+       * Dùng UTC để tránh việc server Render
+       * ở timezone khác làm lệch thứ/ngày.
+       */
+      const [
+        year,
+        month,
+        day,
+      ] = String(date)
+        .split('-')
+        .map(Number);
+
+      const dateUtc =
+        new Date(
+          Date.UTC(
+            year,
+            month - 1,
+            day
+          )
+        );
+
+      if (
+        Number.isNaN(
+          dateUtc.getTime()
+        ) ||
+        dateUtc
+          .toISOString()
+          .slice(0, 10) !== date
+      ) {
+        return errorResponse(
+          res,
+          400,
+          'Date không hợp lệ'
+        );
+      }
+
+      const dayOfWeek =
+        dateUtc.getUTCDay();
+
+      const dailyRules =
+        availability.filter(
+          (item) =>
+            Number(
+              item.dayOfWeek
+            ) === dayOfWeek
+        );
+
+      if (!dailyRules.length) {
+        return res.json({
+          tutorId:
+            String(tutor._id),
+          date,
+          slots: [],
+        });
+      }
+
+      const dayStart =
+        new Date(
+          Date.UTC(
+            year,
+            month - 1,
+            day,
+            0,
+            0,
+            0,
+            0
+          )
+        );
+
+      const dayEnd =
+        new Date(
+          Date.UTC(
+            year,
+            month - 1,
+            day + 1,
+            0,
+            0,
+            0,
+            0
+          )
+        );
+
+      // Lấy toàn bộ lịch active trong ngày.
+      const booked =
+        await Appointment.find({
+          tutorId:
+            tutor._id,
+          status: {
+            $in: [
+              'pending',
+              'confirmed',
+            ],
+          },
+          startTime: {
+            $lt: dayEnd,
+          },
+          endTime: {
+            $gt: dayStart,
+          },
+        })
+          .select(
+            'startTime endTime status'
+          )
+          .lean();
+
+      /*
+       * Slot mặc định = 60 phút.
+       * Sau này Phase 2 mở rộng có thể hỗ trợ
+       * 30 / 45 / 90 / 120 phút.
+       */
+      const SLOT_MINUTES = 60;
+
+      const slots = [];
+
+      for (
+        const rule of dailyRules
+      ) {
+        const startMinutes =
+          timeToMinutes(
+            rule.startTime
+          );
+
+        const endMinutes =
+          timeToMinutes(
+            rule.endTime
+          );
+
+        for (
+          let cursor =
+            startMinutes;
+          cursor + SLOT_MINUTES <=
+            endMinutes;
+          cursor +=
+            SLOT_MINUTES
+        ) {
+          const slotStart =
+            new Date(
+              Date.UTC(
+                year,
+                month - 1,
+                day,
+                Math.floor(
+                  cursor / 60
+                ),
+                cursor % 60,
+                0,
+                0
+              )
+            );
+
+          const slotEnd =
+            new Date(
+              slotStart.getTime() +
+                SLOT_MINUTES *
+                  60 *
+                  1000
+            );
+
+          // Không cho book quá khứ.
+          if (
+            slotStart <=
+            new Date()
+          ) {
+            continue;
+          }
+
+          const isBooked =
+            booked.some(
+              (appointment) =>
+                new Date(
+                  appointment.startTime
+                ) < slotEnd &&
+                new Date(
+                  appointment.endTime
+                ) > slotStart
+            );
+
+          if (
+            !isBooked
+          ) {
+            slots.push({
+              startTime:
+                slotStart.toISOString(),
+              endTime:
+                slotEnd.toISOString(),
+              duration:
+                SLOT_MINUTES,
+              hourlyRate:
+                Number(
+                  tutor.hourlyRate ||
+                    0
+                ),
+              totalAmount:
+                Math.round(
+                  (
+                    Number(
+                      tutor.hourlyRate ||
+                        0
+                    ) *
+                    SLOT_MINUTES
+                  ) / 60
+                ),
+            });
+          }
+        }
+      }
+
+      // Loại slot duplicate nếu tutor có
+      // các rule liền nhau/trùng nhau.
+      const uniqueSlots =
+        Array.from(
+          new Map(
+            slots.map(
+              (slot) => [
+                slot.startTime,
+                slot,
+              ]
+            )
+          ).values()
+        ).sort(
+          (a, b) =>
+            new Date(
+              a.startTime
+            ) -
+            new Date(
+              b.startTime
+            )
+        );
+
+      res.json({
+        tutorId:
+          String(tutor._id),
+        date,
+        timezone: 'UTC',
+        slots:
+          uniqueSlots,
+      });
+    } catch (err) {
+      errorResponse(
+        res,
+        err.status || 500,
+        err.status
+          ? err.message
+          : 'Lỗi lấy lịch trống của gia sư',
+        err.status
+          ? null
+          : err
+      );
+    }
+  }
+);
+// ============================================================
+// GET MY AVAILABILITY
+// GET /api/users/me/availability
+// ============================================================
+app.get(
+  '/api/users/me/availability',
+  authenticate,
+  requireRole('tutor'),
+  async (req, res) => {
+    try {
+      const tutor =
+        await User.findById(
+          req.userId
+        ).select(
+          'availability'
+        );
+
+      if (!tutor) {
+        return errorResponse(
+          res,
+          404,
+          'Không tìm thấy tài khoản'
+        );
+      }
+
+      res.json({
+        availability:
+          tutor.availability ||
+          [],
+      });
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi lấy availability',
+        err
+      );
+    }
+  }
+);
+// ============================================================
+// UPDATE MY AVAILABILITY
+// PUT /api/users/me/availability
+// ============================================================
+app.put(
+  '/api/users/me/availability',
+  authenticate,
+  requireRole('tutor'),
+  async (req, res) => {
+    try {
+      const {
+        availability,
+      } = req.body;
+
+      if (
+        !Array.isArray(
+          availability
+        )
+      ) {
+        return errorResponse(
+          res,
+          400,
+          'availability phải là một mảng'
+        );
+      }
+
+      if (
+        availability.length > 50
+      ) {
+        return errorResponse(
+          res,
+          400,
+          'Quá nhiều khoảng thời gian'
+        );
+      }
+
+      const validTime =
+        /^([01]\d|2[0-3]):[0-5]\d$/;
+
+      const normalized =
+        availability.map(
+          (slot, index) => {
+            const dayOfWeek =
+              Number(
+                slot?.dayOfWeek
+              );
+
+            const startTime =
+              String(
+                slot?.startTime ||
+                  ''
+              ).trim();
+
+            const endTime =
+              String(
+                slot?.endTime ||
+                  ''
+              ).trim();
+
+            if (
+              !Number.isInteger(
+                dayOfWeek
+              ) ||
+              dayOfWeek < 0 ||
+              dayOfWeek > 6
+            ) {
+              const error =
+                new Error(
+                  `dayOfWeek không hợp lệ tại item ${index + 1}`
+                );
+
+              error.status = 400;
+
+              throw error;
+            }
+
+            if (
+              !validTime.test(
+                startTime
+              ) ||
+              !validTime.test(
+                endTime
+              )
+            ) {
+              const error =
+                new Error(
+                  `Giờ không hợp lệ tại item ${index + 1}`
+                );
+
+              error.status = 400;
+
+              throw error;
+            }
+
+            if (
+              startTime >=
+              endTime
+            ) {
+              const error =
+                new Error(
+                  `Khoảng giờ không hợp lệ tại item ${index + 1}`
+                );
+
+              error.status = 400;
+
+              throw error;
+            }
+
+            return {
+              dayOfWeek,
+              startTime,
+              endTime,
+            };
+          }
+        );
+
+      normalized.sort(
+        (a, b) =>
+          a.dayOfWeek - b.dayOfWeek ||
+          a.startTime.localeCompare(
+            b.startTime
+          )
+      );
+
+      for (
+        let i = 1;
+        i <
+        normalized.length;
+        i++
+      ) {
+        const previous =
+          normalized[i - 1];
+
+        const current =
+          normalized[i];
+
+        if (
+          previous.dayOfWeek ===
+            current.dayOfWeek &&
+          previous.endTime >
+            current.startTime
+        ) {
+          return errorResponse(
+            res,
+            400,
+            'Các khoảng thời gian trong cùng ngày đang bị chồng nhau'
+          );
+        }
+      }
+
+      const tutor =
+        await User.findOneAndUpdate(
+          {
+            _id: req.userId,
+            role: 'tutor',
+          },
+          {
+            $set: {
+              availability:
+                normalized,
+            },
+          },
+          {
+            new: true,
+            runValidators: true,
+          }
+        ).select(
+          '-password'
+        );
+
+      if (!tutor) {
+        return errorResponse(
+          res,
+          404,
+          'Không tìm thấy gia sư'
+        );
+      }
+
+      res.json({
+        message:
+          'Đã cập nhật lịch rảnh',
+        availability:
+          tutor.availability ||
+          [],
+      });
+    } catch (err) {
+      errorResponse(
+        res,
+        err.status || 500,
+        err.status
+          ? err.message
+          : 'Lỗi cập nhật availability',
+        err.status
+          ? null
+          : err
+      );
+    }
+  }
+);
 
 // ============================================================
 // HEALTH CHECK
@@ -701,6 +1328,7 @@ app.put('/api/users/:id', authenticate, async (req, res) => {
       'subjects',
       'hourlyRate',
       'location',
+      'availability',
     ];
 
     const updates = {};
@@ -720,7 +1348,145 @@ app.put('/api/users/:id', authenticate, async (req, res) => {
         updates.hourlyRate
       );
     }
+    // ========================================================
+    // VALIDATE TUTOR AVAILABILITY
+    // ========================================================
+    if (updates.availability !== undefined) {
+      if (req.userRole !== 'tutor') {
+        return errorResponse(
+          res,
+          403,
+          'Chỉ gia sư mới có thể cập nhật lịch rảnh'
+        );
+      }
 
+      if (!Array.isArray(updates.availability)) {
+        return errorResponse(
+          res,
+          400,
+          'availability phải là một mảng'
+        );
+      }
+
+      if (updates.availability.length > 50) {
+        return errorResponse(
+          res,
+          400,
+          'Availability quá lớn'
+        );
+      }
+
+      const normalizedAvailability =
+        updates.availability.map(
+          (slot, index) => {
+            if (!slot || typeof slot !== 'object') {
+              throw Object.assign(
+                new Error(
+                  `Availability item ${index + 1} không hợp lệ`
+                ),
+                { status: 400 }
+              );
+            }
+
+            const dayOfWeek =
+              Number(slot.dayOfWeek);
+
+            const startTime =
+              String(
+                slot.startTime || ''
+              ).trim();
+
+            const endTime =
+              String(
+                slot.endTime || ''
+              ).trim();
+
+            const validTime =
+              /^([01]\d|2[0-3]):[0-5]\d$/;
+
+            if (
+              !Number.isInteger(dayOfWeek) ||
+              dayOfWeek < 0 ||
+              dayOfWeek > 6
+            ) {
+              throw Object.assign(
+                new Error(
+                  `dayOfWeek không hợp lệ tại item ${index + 1}`
+                ),
+                { status: 400 }
+              );
+            }
+
+            if (
+              !validTime.test(startTime) ||
+              !validTime.test(endTime)
+            ) {
+              throw Object.assign(
+                new Error(
+                  `startTime/endTime không hợp lệ tại item ${index + 1}`
+                ),
+                { status: 400 }
+              );
+            }
+
+            if (startTime >= endTime) {
+              throw Object.assign(
+                new Error(
+                  `Khoảng thời gian không hợp lệ tại item ${index + 1}`
+                ),
+                { status: 400 }
+              );
+            }
+
+            return {
+              dayOfWeek,
+              startTime,
+              endTime,
+            };
+          }
+        );
+
+      // Sắp xếp để dữ liệu trong DB luôn ổn định.
+      normalizedAvailability.sort(
+        (a, b) =>
+          a.dayOfWeek - b.dayOfWeek ||
+          a.startTime.localeCompare(
+            b.startTime
+          )
+      );
+
+      // Không cho hai khoảng thời gian cùng ngày
+      // bị chồng lên nhau.
+      for (
+        let i = 0;
+        i <
+        normalizedAvailability.length - 1;
+        i++
+      ) {
+        const current =
+          normalizedAvailability[i];
+
+        const next =
+          normalizedAvailability[i + 1];
+
+        if (
+          current.dayOfWeek ===
+            next.dayOfWeek &&
+          current.endTime >
+            next.startTime
+        ) {
+          throw Object.assign(
+            new Error(
+              'Các khoảng availability không được chồng nhau'
+            ),
+            { status: 400 }
+          );
+        }
+      }
+
+      updates.availability =
+        normalizedAvailability;
+    }      
     const user =
       await User.findByIdAndUpdate(
         req.params.id,
@@ -1035,6 +1801,63 @@ app.post(
           'Khung giờ này đã có lịch học khác'
         );
       }
+         // ======================================================
+      // CHECK TUTOR AVAILABILITY
+      // ======================================================
+
+      const appointmentDay =
+        start.getUTCDay();
+
+      const startMinutes =
+        start.getUTCHours() * 60 +
+        start.getUTCMinutes();
+
+      const endMinutes =
+        end.getUTCHours() * 60 +
+        end.getUTCMinutes();
+
+      const sameDayRules =
+        Array.isArray(
+          tutor.availability
+        )
+          ? tutor.availability.filter(
+              (rule) =>
+                Number(
+                  rule.dayOfWeek
+                ) ===
+                appointmentDay
+            )
+          : [];
+
+      const fitsAvailability =
+        sameDayRules.some(
+          (rule) => {
+            const ruleStart =
+              timeToMinutes(
+                rule.startTime
+              );
+
+            const ruleEnd =
+              timeToMinutes(
+                rule.endTime
+              );
+
+            return (
+              startMinutes >=
+                ruleStart &&
+              endMinutes <=
+                ruleEnd
+            );
+          }
+        );
+
+      if (!fitsAvailability) {
+        return errorResponse(
+          res,
+          409,
+          'Thời gian bạn chọn không nằm trong lịch dạy của gia sư'
+        );
+      }   
 
       const hourlyRate =
         Number(

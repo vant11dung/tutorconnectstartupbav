@@ -95,3 +95,156 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 @media (max-width: 1120px) { .classroom-layout,.live-monitor-grid,.coach-grid,.teaching-grid { grid-template-columns:1fr; }.classroom-side { grid-template-columns:1fr 1fr; }.coach-lower,.studio-grid { grid-template-columns:1fr; }.trust-dashboard { grid-template-columns:1fr 1fr; }.policy-card { grid-column:span 2; } }
 @media (max-width: 760px) { .classroom-heading { align-items:flex-start; }.classroom-status { align-items:flex-start;flex-direction:column; }.video-stage { grid-template-columns:1fr; }.main-video { min-height:250px; }.video-side { grid-template-columns:1fr 1fr;grid-template-rows:none; }.participant-tile { min-height:88px; }.classroom-side { grid-template-columns:1fr; }.class-feature-strip { display:grid;grid-template-columns:1fr 1fr;gap:13px; }.class-feature-strip > div { min-width:0; }.class-feature-strip > button { grid-column:span 2; }.focus-card { min-height:228px;padding:22px; }.focus-card h2 { font-size:39px; }.focus-orbit { right:9%;transform:translateY(-50%) scale(.78); }.mission-card { padding:16px; }.week-dots i { width:23px;height:23px; }.activity-tiles { grid-template-columns:1fr; }.parent-card { align-items:flex-start;flex-wrap:wrap; }.parent-card .secondary-button { margin-left:48px; }.trust-dashboard { grid-template-columns:1fr; }.policy-card { grid-column:auto; }.monitor-stage b { font-size:21px; }.live-hero-head { gap:5px;flex-direction:column; }.safety-grid { grid-template-columns:1fr; } }
+/* ============================================================
+   DEMO SECTION STYLING
+   
+   Thêm đoạn CSS này vào cuối file styles.css
+============================================================ */
+
+.demo-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border, #e5e7eb);
+}
+
+.demo-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--color-text-secondary, #6b7280);
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.5px;
+}
+
+.demo-buttons {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.demo-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 0.5rem;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  font-size: 0.875rem;
+  font-family: inherit;
+}
+
+.demo-btn:hover {
+  border-color: var(--color-primary, #20214f);
+  background: rgba(32, 33, 79, 0.02);
+  transform: translateX(2px);
+}
+
+.demo-btn:active {
+  transform: translateX(0px);
+}
+
+.demo-btn span {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.demo-btn strong {
+  display: block;
+  color: var(--color-text-primary, #1f2937);
+  margin-bottom: 0.2rem;
+  font-weight: 600;
+}
+
+.demo-btn small {
+  display: block;
+  color: var(--color-text-secondary, #6b7280);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+/* Màu hover cho từng role */
+
+.demo-btn.demo-student:hover {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.02);
+}
+
+.demo-btn.demo-tutor:hover {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.02);
+}
+
+.demo-btn.demo-admin:hover {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.02);
+}
+
+/* Responsive */
+
+@media (max-width: 768px) {
+  .demo-btn {
+    padding: 0.7rem 0.9rem;
+    font-size: 0.8rem;
+  }
+
+  .demo-btn span {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .demo-section {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+  }
+
+  .demo-buttons {
+    gap: 0.5rem;
+  }
+
+  .demo-btn {
+    padding: 0.6rem 0.8rem;
+  }
+}
+
+/* ============================================================
+   DARK MODE SUPPORT (tùy chọn)
+============================================================ */
+
+@media (prefers-color-scheme: dark) {
+  .demo-section {
+    border-top-color: #374151;
+  }
+
+  .demo-btn {
+    border-color: #374151;
+  }
+
+  .demo-btn:hover {
+    background: rgba(32, 33, 79, 0.1);
+  }
+
+  .demo-btn strong {
+    color: #f3f4f6;
+  }
+
+  .demo-btn small {
+    color: #9ca3af;
+  }
+
+  .demo-btn.demo-student:hover {
+    background: rgba(59, 130, 246, 0.1);
+  }
+
+  .demo-btn.demo-tutor:hover {
+    background: rgba(16, 185, 129, 0.1);
+  }
+
+  .demo-btn.demo-admin:hover {
+    background: rgba(245, 158, 11, 0.1);
+  }
+}

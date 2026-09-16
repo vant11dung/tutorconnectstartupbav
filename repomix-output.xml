@@ -2072,6 +2072,40 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+        // ========================================================
+    // TUTOR AVAILABILITY
+    // Lịch rảnh lặp lại hàng tuần của gia sư.
+    // dayOfWeek:
+    // 0 = Chủ nhật
+    // 1 = Thứ 2
+    // ...
+    // 6 = Thứ 7
+    // ========================================================
+    availability: {
+      type: [
+        {
+          dayOfWeek: {
+            type: Number,
+            min: 0,
+            max: 6,
+            required: true,
+          },
+
+          startTime: {
+            type: String,
+            required: true,
+            match: /^([01]\d|2[0-3]):[0-5]\d$/,
+          },
+
+          endTime: {
+            type: String,
+            required: true,
+            match: /^([01]\d|2[0-3]):[0-5]\d$/,
+          },
+        },
+      ],
+      default: [],
+    },
   },
   {
     timestamps: true,
@@ -2189,6 +2223,17 @@ const appointmentSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+// Indexes phục vụ truy vấn lịch và kiểm tra conflict nhanh hơn.
+appointmentSchema.index({
+  tutorId: 1,
+  startTime: 1,
+  status: 1,
+});
+
+appointmentSchema.index({
+  studentId: 1,
+  startTime: 1,
+});
 
 const messageSchema = new mongoose.Schema(
   {
@@ -2335,6 +2380,8 @@ function publicUser(user) {
     hourlyRate: user.hourlyRate,
     location: user.location,
     verified: user.verified,
+    availability:
+      user.availability || [],
   };
 }
 
@@ -2400,6 +2447,597 @@ function requireRole(...roles) {
     next();
   };
 }
+// ============================================================
+// TUTOR AVAILABILITY
+// ============================================================
+
+function timeToMinutes(
+  time
+) {
+  const [
+    hours,
+    minutes,
+  ] = String(time)
+    .split(':')
+    .map(Number);
+
+  return (
+    hours * 60 +
+    minutes
+  );
+}
+
+function minutesToTime(
+  totalMinutes
+) {
+  const hours =
+    Math.floor(
+      totalMinutes / 60
+    );
+
+  const minutes =
+    totalMinutes % 60;
+
+  return (
+    String(hours).padStart(2, '0') +
+    ':' +
+    String(minutes).padStart(2, '0')
+  );
+}
+
+
+// ============================================================
+// GET AVAILABLE SLOTS
+// GET /api/tutors/:tutorId/availability?date=YYYY-MM-DD
+// ============================================================
+app.get(
+  '/api/tutors/:tutorId/availability',
+  authenticate,
+  async (req, res) => {
+    try {
+      requireObjectId(
+        req.params.tutorId,
+        'Tutor ID'
+      );
+
+      const {
+        date,
+      } = req.query;
+
+      if (
+        !date ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(
+          String(date)
+        )
+      ) {
+        return errorResponse(
+          res,
+          400,
+          'Date phải có định dạng YYYY-MM-DD'
+        );
+      }
+
+      const tutor =
+        await User.findOne({
+          _id:
+            req.params.tutorId,
+          role: 'tutor',
+        }).lean();
+
+      if (!tutor) {
+        return errorResponse(
+          res,
+          404,
+          'Không tìm thấy gia sư'
+        );
+      }
+
+      const availability =
+        Array.isArray(
+          tutor.availability
+        )
+          ? tutor.availability
+          : [];
+
+      if (!availability.length) {
+        return res.json({
+          tutorId:
+            String(tutor._id),
+          date,
+          slots: [],
+        });
+      }
+
+      /*
+       * Dùng UTC để tránh việc server Render
+       * ở timezone khác làm lệch thứ/ngày.
+       */
+      const [
+        year,
+        month,
+        day,
+      ] = String(date)
+        .split('-')
+        .map(Number);
+
+      const dateUtc =
+        new Date(
+          Date.UTC(
+            year,
+            month - 1,
+            day
+          )
+        );
+
+      if (
+        Number.isNaN(
+          dateUtc.getTime()
+        ) ||
+        dateUtc
+          .toISOString()
+          .slice(0, 10) !== date
+      ) {
+        return errorResponse(
+          res,
+          400,
+          'Date không hợp lệ'
+        );
+      }
+
+      const dayOfWeek =
+        dateUtc.getUTCDay();
+
+      const dailyRules =
+        availability.filter(
+          (item) =>
+            Number(
+              item.dayOfWeek
+            ) === dayOfWeek
+        );
+
+      if (!dailyRules.length) {
+        return res.json({
+          tutorId:
+            String(tutor._id),
+          date,
+          slots: [],
+        });
+      }
+
+      const dayStart =
+        new Date(
+          Date.UTC(
+            year,
+            month - 1,
+            day,
+            0,
+            0,
+            0,
+            0
+          )
+        );
+
+      const dayEnd =
+        new Date(
+          Date.UTC(
+            year,
+            month - 1,
+            day + 1,
+            0,
+            0,
+            0,
+            0
+          )
+        );
+
+      // Lấy toàn bộ lịch active trong ngày.
+      const booked =
+        await Appointment.find({
+          tutorId:
+            tutor._id,
+          status: {
+            $in: [
+              'pending',
+              'confirmed',
+            ],
+          },
+          startTime: {
+            $lt: dayEnd,
+          },
+          endTime: {
+            $gt: dayStart,
+          },
+        })
+          .select(
+            'startTime endTime status'
+          )
+          .lean();
+
+      /*
+       * Slot mặc định = 60 phút.
+       * Sau này Phase 2 mở rộng có thể hỗ trợ
+       * 30 / 45 / 90 / 120 phút.
+       */
+      const SLOT_MINUTES = 60;
+
+      const slots = [];
+
+      for (
+        const rule of dailyRules
+      ) {
+        const startMinutes =
+          timeToMinutes(
+            rule.startTime
+          );
+
+        const endMinutes =
+          timeToMinutes(
+            rule.endTime
+          );
+
+        for (
+          let cursor =
+            startMinutes;
+          cursor + SLOT_MINUTES <=
+            endMinutes;
+          cursor +=
+            SLOT_MINUTES
+        ) {
+          const slotStart =
+            new Date(
+              Date.UTC(
+                year,
+                month - 1,
+                day,
+                Math.floor(
+                  cursor / 60
+                ),
+                cursor % 60,
+                0,
+                0
+              )
+            );
+
+          const slotEnd =
+            new Date(
+              slotStart.getTime() +
+                SLOT_MINUTES *
+                  60 *
+                  1000
+            );
+
+          // Không cho book quá khứ.
+          if (
+            slotStart <=
+            new Date()
+          ) {
+            continue;
+          }
+
+          const isBooked =
+            booked.some(
+              (appointment) =>
+                new Date(
+                  appointment.startTime
+                ) < slotEnd &&
+                new Date(
+                  appointment.endTime
+                ) > slotStart
+            );
+
+          if (
+            !isBooked
+          ) {
+            slots.push({
+              startTime:
+                slotStart.toISOString(),
+              endTime:
+                slotEnd.toISOString(),
+              duration:
+                SLOT_MINUTES,
+              hourlyRate:
+                Number(
+                  tutor.hourlyRate ||
+                    0
+                ),
+              totalAmount:
+                Math.round(
+                  (
+                    Number(
+                      tutor.hourlyRate ||
+                        0
+                    ) *
+                    SLOT_MINUTES
+                  ) / 60
+                ),
+            });
+          }
+        }
+      }
+
+      // Loại slot duplicate nếu tutor có
+      // các rule liền nhau/trùng nhau.
+      const uniqueSlots =
+        Array.from(
+          new Map(
+            slots.map(
+              (slot) => [
+                slot.startTime,
+                slot,
+              ]
+            )
+          ).values()
+        ).sort(
+          (a, b) =>
+            new Date(
+              a.startTime
+            ) -
+            new Date(
+              b.startTime
+            )
+        );
+
+      res.json({
+        tutorId:
+          String(tutor._id),
+        date,
+        timezone: 'UTC',
+        slots:
+          uniqueSlots,
+      });
+    } catch (err) {
+      errorResponse(
+        res,
+        err.status || 500,
+        err.status
+          ? err.message
+          : 'Lỗi lấy lịch trống của gia sư',
+        err.status
+          ? null
+          : err
+      );
+    }
+  }
+);
+// ============================================================
+// GET MY AVAILABILITY
+// GET /api/users/me/availability
+// ============================================================
+app.get(
+  '/api/users/me/availability',
+  authenticate,
+  requireRole('tutor'),
+  async (req, res) => {
+    try {
+      const tutor =
+        await User.findById(
+          req.userId
+        ).select(
+          'availability'
+        );
+
+      if (!tutor) {
+        return errorResponse(
+          res,
+          404,
+          'Không tìm thấy tài khoản'
+        );
+      }
+
+      res.json({
+        availability:
+          tutor.availability ||
+          [],
+      });
+    } catch (err) {
+      errorResponse(
+        res,
+        500,
+        'Lỗi lấy availability',
+        err
+      );
+    }
+  }
+);
+// ============================================================
+// UPDATE MY AVAILABILITY
+// PUT /api/users/me/availability
+// ============================================================
+app.put(
+  '/api/users/me/availability',
+  authenticate,
+  requireRole('tutor'),
+  async (req, res) => {
+    try {
+      const {
+        availability,
+      } = req.body;
+
+      if (
+        !Array.isArray(
+          availability
+        )
+      ) {
+        return errorResponse(
+          res,
+          400,
+          'availability phải là một mảng'
+        );
+      }
+
+      if (
+        availability.length > 50
+      ) {
+        return errorResponse(
+          res,
+          400,
+          'Quá nhiều khoảng thời gian'
+        );
+      }
+
+      const validTime =
+        /^([01]\d|2[0-3]):[0-5]\d$/;
+
+      const normalized =
+        availability.map(
+          (slot, index) => {
+            const dayOfWeek =
+              Number(
+                slot?.dayOfWeek
+              );
+
+            const startTime =
+              String(
+                slot?.startTime ||
+                  ''
+              ).trim();
+
+            const endTime =
+              String(
+                slot?.endTime ||
+                  ''
+              ).trim();
+
+            if (
+              !Number.isInteger(
+                dayOfWeek
+              ) ||
+              dayOfWeek < 0 ||
+              dayOfWeek > 6
+            ) {
+              const error =
+                new Error(
+                  `dayOfWeek không hợp lệ tại item ${index + 1}`
+                );
+
+              error.status = 400;
+
+              throw error;
+            }
+
+            if (
+              !validTime.test(
+                startTime
+              ) ||
+              !validTime.test(
+                endTime
+              )
+            ) {
+              const error =
+                new Error(
+                  `Giờ không hợp lệ tại item ${index + 1}`
+                );
+
+              error.status = 400;
+
+              throw error;
+            }
+
+            if (
+              startTime >=
+              endTime
+            ) {
+              const error =
+                new Error(
+                  `Khoảng giờ không hợp lệ tại item ${index + 1}`
+                );
+
+              error.status = 400;
+
+              throw error;
+            }
+
+            return {
+              dayOfWeek,
+              startTime,
+              endTime,
+            };
+          }
+        );
+
+      normalized.sort(
+        (a, b) =>
+          a.dayOfWeek - b.dayOfWeek ||
+          a.startTime.localeCompare(
+            b.startTime
+          )
+      );
+
+      for (
+        let i = 1;
+        i <
+        normalized.length;
+        i++
+      ) {
+        const previous =
+          normalized[i - 1];
+
+        const current =
+          normalized[i];
+
+        if (
+          previous.dayOfWeek ===
+            current.dayOfWeek &&
+          previous.endTime >
+            current.startTime
+        ) {
+          return errorResponse(
+            res,
+            400,
+            'Các khoảng thời gian trong cùng ngày đang bị chồng nhau'
+          );
+        }
+      }
+
+      const tutor =
+        await User.findOneAndUpdate(
+          {
+            _id: req.userId,
+            role: 'tutor',
+          },
+          {
+            $set: {
+              availability:
+                normalized,
+            },
+          },
+          {
+            new: true,
+            runValidators: true,
+          }
+        ).select(
+          '-password'
+        );
+
+      if (!tutor) {
+        return errorResponse(
+          res,
+          404,
+          'Không tìm thấy gia sư'
+        );
+      }
+
+      res.json({
+        message:
+          'Đã cập nhật lịch rảnh',
+        availability:
+          tutor.availability ||
+          [],
+      });
+    } catch (err) {
+      errorResponse(
+        res,
+        err.status || 500,
+        err.status
+          ? err.message
+          : 'Lỗi cập nhật availability',
+        err.status
+          ? null
+          : err
+      );
+    }
+  }
+);
 
 // ============================================================
 // HEALTH CHECK
@@ -2556,6 +3194,47 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+
+// ==========================================
+// CURRENT AUTHENTICATED USER
+// ==========================================
+app.get(
+  '/api/auth/me',
+  authenticate,
+  async (req, res) => {
+    try {
+      const user =
+        await User.findById(
+          req.userId
+        ).select('-password');
+
+      if (!user) {
+        return errorResponse(
+          res,
+          404,
+          'Tài khoản không còn tồn tại'
+        );
+      }
+
+      res.json(
+        publicUser(user)
+      );
+    } catch (err) {
+      console.error(
+        'AUTH ME ERROR:',
+        err
+      );
+
+      errorResponse(
+        res,
+        500,
+        'Lỗi lấy tài khoản hiện tại',
+        err
+      );
+    }
+  }
+);
+
 // ============================================================
 // USERS
 // ============================================================
@@ -2630,6 +3309,7 @@ app.put('/api/users/:id', authenticate, async (req, res) => {
       'subjects',
       'hourlyRate',
       'location',
+      'availability',
     ];
 
     const updates = {};
@@ -2649,7 +3329,145 @@ app.put('/api/users/:id', authenticate, async (req, res) => {
         updates.hourlyRate
       );
     }
+    // ========================================================
+    // VALIDATE TUTOR AVAILABILITY
+    // ========================================================
+    if (updates.availability !== undefined) {
+      if (req.userRole !== 'tutor') {
+        return errorResponse(
+          res,
+          403,
+          'Chỉ gia sư mới có thể cập nhật lịch rảnh'
+        );
+      }
 
+      if (!Array.isArray(updates.availability)) {
+        return errorResponse(
+          res,
+          400,
+          'availability phải là một mảng'
+        );
+      }
+
+      if (updates.availability.length > 50) {
+        return errorResponse(
+          res,
+          400,
+          'Availability quá lớn'
+        );
+      }
+
+      const normalizedAvailability =
+        updates.availability.map(
+          (slot, index) => {
+            if (!slot || typeof slot !== 'object') {
+              throw Object.assign(
+                new Error(
+                  `Availability item ${index + 1} không hợp lệ`
+                ),
+                { status: 400 }
+              );
+            }
+
+            const dayOfWeek =
+              Number(slot.dayOfWeek);
+
+            const startTime =
+              String(
+                slot.startTime || ''
+              ).trim();
+
+            const endTime =
+              String(
+                slot.endTime || ''
+              ).trim();
+
+            const validTime =
+              /^([01]\d|2[0-3]):[0-5]\d$/;
+
+            if (
+              !Number.isInteger(dayOfWeek) ||
+              dayOfWeek < 0 ||
+              dayOfWeek > 6
+            ) {
+              throw Object.assign(
+                new Error(
+                  `dayOfWeek không hợp lệ tại item ${index + 1}`
+                ),
+                { status: 400 }
+              );
+            }
+
+            if (
+              !validTime.test(startTime) ||
+              !validTime.test(endTime)
+            ) {
+              throw Object.assign(
+                new Error(
+                  `startTime/endTime không hợp lệ tại item ${index + 1}`
+                ),
+                { status: 400 }
+              );
+            }
+
+            if (startTime >= endTime) {
+              throw Object.assign(
+                new Error(
+                  `Khoảng thời gian không hợp lệ tại item ${index + 1}`
+                ),
+                { status: 400 }
+              );
+            }
+
+            return {
+              dayOfWeek,
+              startTime,
+              endTime,
+            };
+          }
+        );
+
+      // Sắp xếp để dữ liệu trong DB luôn ổn định.
+      normalizedAvailability.sort(
+        (a, b) =>
+          a.dayOfWeek - b.dayOfWeek ||
+          a.startTime.localeCompare(
+            b.startTime
+          )
+      );
+
+      // Không cho hai khoảng thời gian cùng ngày
+      // bị chồng lên nhau.
+      for (
+        let i = 0;
+        i <
+        normalizedAvailability.length - 1;
+        i++
+      ) {
+        const current =
+          normalizedAvailability[i];
+
+        const next =
+          normalizedAvailability[i + 1];
+
+        if (
+          current.dayOfWeek ===
+            next.dayOfWeek &&
+          current.endTime >
+            next.startTime
+        ) {
+          throw Object.assign(
+            new Error(
+              'Các khoảng availability không được chồng nhau'
+            ),
+            { status: 400 }
+          );
+        }
+      }
+
+      updates.availability =
+        normalizedAvailability;
+    }      
     const user =
       await User.findByIdAndUpdate(
         req.params.id,
@@ -2789,6 +3607,7 @@ app.get(
 // ============================================================
 
 // CREATE APPOINTMENT
+// CREATE APPOINTMENT
 app.post(
   '/api/appointments',
   authenticate,
@@ -2808,8 +3627,14 @@ app.post(
       const {
         tutorId,
         subject,
+        startTime: rawStartTime,
+        endTime: rawEndTime,
+
+        // Legacy support:
+        // giữ tương thích tạm thời với client cũ.
         dateTime,
-        duration = 60,
+        duration,
+
         notes = '',
       } = req.body;
 
@@ -2818,25 +3643,84 @@ app.post(
         'Tutor ID'
       );
 
-      if (!subject || !dateTime) {
+      const normalizedSubject = String(
+        subject || ''
+      ).trim();
+
+      if (!normalizedSubject) {
         return errorResponse(
           res,
           400,
-          'Thiếu subject hoặc dateTime'
+          'Subject không được để trống'
         );
       }
 
-      const minutes = Number(duration);
+      const startInput =
+        rawStartTime || dateTime;
+
+      if (!startInput) {
+        return errorResponse(
+          res,
+          400,
+          'Thiếu startTime'
+        );
+      }
+
+      const start =
+        new Date(startInput);
+
+      if (Number.isNaN(start.getTime())) {
+        return errorResponse(
+          res,
+          400,
+          'startTime không hợp lệ'
+        );
+      }
+
+      const end = rawEndTime
+        ? new Date(rawEndTime)
+        : (() => {
+            const minutes =
+              Number(duration || 60);
+
+            if (
+              !Number.isFinite(minutes) ||
+              minutes <= 0 ||
+              minutes > 480
+            ) {
+              return null;
+            }
+
+            return new Date(
+              start.getTime() +
+                minutes * 60 * 1000
+            );
+          })();
 
       if (
-        !Number.isFinite(minutes) ||
-        minutes <= 0 ||
-        minutes > 480
+        !end ||
+        Number.isNaN(end.getTime()) ||
+        end <= start
       ) {
         return errorResponse(
           res,
           400,
-          'Duration không hợp lệ'
+          'endTime không hợp lệ hoặc phải sau startTime'
+        );
+      }
+
+      const durationMinutes =
+        (end.getTime() - start.getTime()) /
+        (60 * 1000);
+
+      if (
+        durationMinutes <= 0 ||
+        durationMinutes > 480
+      ) {
+        return errorResponse(
+          res,
+          400,
+          'Thời lượng buổi học phải từ 1 đến 480 phút'
         );
       }
 
@@ -2865,38 +3749,138 @@ app.post(
         );
       }
 
-      const startTime =
-        new Date(dateTime);
-
-      if (Number.isNaN(startTime.getTime())) {
+      if (start <= new Date()) {
         return errorResponse(
           res,
           400,
-          'dateTime không hợp lệ'
+          'Không thể đặt lịch trong quá khứ'
         );
       }
 
-      const endTime = new Date(
-        startTime.getTime() +
-          minutes * 60 * 1000
-      );
+      // Không cho một gia sư nhận hai lịch bị chồng thời gian.
+      const conflict =
+        await Appointment.findOne({
+          tutorId,
+          status: {
+            $in: [
+              'pending',
+              'confirmed',
+            ],
+          },
+          startTime: {
+            $lt: end,
+          },
+          endTime: {
+            $gt: start,
+          },
+        }).select('_id');
+
+      if (conflict) {
+        return errorResponse(
+          res,
+          409,
+          'Khung giờ này đã có lịch học khác'
+        );
+      }
+         // ======================================================
+      // CHECK TUTOR AVAILABILITY
+      // ======================================================
+
+      const appointmentDay =
+        start.getUTCDay();
+
+      const startMinutes =
+        start.getUTCHours() * 60 +
+        start.getUTCMinutes();
+
+      const endMinutes =
+        end.getUTCHours() * 60 +
+        end.getUTCMinutes();
+
+      const sameDayRules =
+        Array.isArray(
+          tutor.availability
+        )
+          ? tutor.availability.filter(
+              (rule) =>
+                Number(
+                  rule.dayOfWeek
+                ) ===
+                appointmentDay
+            )
+          : [];
+
+      const fitsAvailability =
+        sameDayRules.some(
+          (rule) => {
+            const ruleStart =
+              timeToMinutes(
+                rule.startTime
+              );
+
+            const ruleEnd =
+              timeToMinutes(
+                rule.endTime
+              );
+
+            return (
+              startMinutes >=
+                ruleStart &&
+              endMinutes <=
+                ruleEnd
+            );
+          }
+        );
+
+      if (!fitsAvailability) {
+        return errorResponse(
+          res,
+          409,
+          'Thời gian bạn chọn không nằm trong lịch dạy của gia sư'
+        );
+      }   
 
       const hourlyRate =
-        Number(tutor.hourlyRate || 0);
+        Number(
+          tutor.hourlyRate || 0
+        );
 
-      // Tính tiền ở backend.
-      const totalAmount = Math.round(
-        (hourlyRate * minutes) / 60
-      );
+      if (
+        !Number.isFinite(hourlyRate) ||
+        hourlyRate < 0
+      ) {
+        return errorResponse(
+          res,
+          500,
+          'Hourly rate của gia sư không hợp lệ'
+        );
+      }
+
+      const totalAmount =
+        Math.round(
+          (hourlyRate * durationMinutes) /
+          60
+        );
+
+      const cleanNotes =
+        String(notes || '').trim();
+
+      if (cleanNotes.length > 2000) {
+        return errorResponse(
+          res,
+          400,
+          'Notes không được vượt quá 2000 ký tự'
+        );
+      }
 
       const appointment =
         await Appointment.create({
           studentId: req.userId,
           tutorId,
-          subject: String(subject).trim(),
-          startTime,
-          endTime,
-          notes: String(notes || ''),
+          subject: normalizedSubject,
+          startTime: start,
+          endTime: end,
+          notes: cleanNotes,
           hourlyRate,
           totalAmount,
           status: 'pending',
@@ -2915,7 +3899,9 @@ app.post(
             'name email avatar subjects hourlyRate verified'
           );
 
-      res.status(201).json(populated);
+      res.status(201).json(
+        populated
+      );
     } catch (err) {
       if (err.status) {
         return errorResponse(
@@ -2934,7 +3920,6 @@ app.post(
     }
   }
 );
-
 // GET MY APPOINTMENTS
 app.get(
   '/api/appointments',
@@ -3045,6 +4030,7 @@ app.get(
 );
 
 // UPDATE APPOINTMENT
+// UPDATE APPOINTMENT
 app.put(
   '/api/appointments/:id',
   authenticate,
@@ -3068,14 +4054,24 @@ app.put(
         );
       }
 
-      const allowed =
-        req.userRole === 'admin' ||
-        String(appointment.studentId) ===
-          req.userId ||
-        String(appointment.tutorId) ===
-          req.userId;
+      const isAdmin =
+        req.userRole === 'admin';
 
-      if (!allowed) {
+      const isStudent =
+        String(
+          appointment.studentId
+        ) === req.userId;
+
+      const isTutor =
+        String(
+          appointment.tutorId
+        ) === req.userId;
+
+      if (
+        !isAdmin &&
+        !isStudent &&
+        !isTutor
+      ) {
         return errorResponse(
           res,
           403,
@@ -3083,7 +4079,12 @@ app.put(
         );
       }
 
-      if (req.body.status !== undefined) {
+      const requestedStatus =
+        req.body.status;
+
+      if (
+        requestedStatus !== undefined
+      ) {
         const validStatuses = [
           'pending',
           'confirmed',
@@ -3093,7 +4094,7 @@ app.put(
 
         if (
           !validStatuses.includes(
-            req.body.status
+            requestedStatus
           )
         ) {
           return errorResponse(
@@ -3103,24 +4104,152 @@ app.put(
           );
         }
 
-        appointment.status =
-          req.body.status;
-      }
+        const currentStatus =
+          appointment.status;
 
-      if (req.body.notes !== undefined) {
-        appointment.notes =
-          String(req.body.notes);
+        if (
+          !isAdmin &&
+          currentStatus === 'cancelled'
+        ) {
+          return errorResponse(
+            res,
+            409,
+            'Lịch học đã bị hủy và không thể khôi phục'
+          );
+        }
+
+        if (
+          !isAdmin &&
+          currentStatus === 'completed'
+        ) {
+          return errorResponse(
+            res,
+            409,
+            'Lịch học đã hoàn thành và không thể thay đổi'
+          );
+        }
+
+        let canChange = false;
+
+        if (isAdmin) {
+          canChange = true;
+        } else if (isStudent) {
+          canChange =
+            requestedStatus ===
+              'cancelled' &&
+            (
+              currentStatus ===
+                'pending' ||
+              currentStatus ===
+                'confirmed'
+            );
+        } else if (isTutor) {
+          canChange =
+            (
+              currentStatus ===
+                'pending' &&
+              (
+                requestedStatus ===
+                  'confirmed' ||
+                requestedStatus ===
+                  'cancelled'
+              )
+            ) ||
+            (
+              currentStatus ===
+                'confirmed' &&
+              (
+                requestedStatus ===
+                  'cancelled' ||
+                (
+                  requestedStatus ===
+                    'completed' &&
+                  new Date() >=
+                    new Date(
+                      appointment.endTime
+                    )
+                )
+              )
+            );
+        }
+
+        if (!canChange) {
+          return errorResponse(
+            res,
+            403,
+            'Bạn không có quyền chuyển lịch học sang trạng thái này'
+          );
+        }
+
+        appointment.status =
+          requestedStatus;
       }
 
       if (
-        req.body.startTime !== undefined
+        req.body.notes !== undefined
       ) {
-        const start =
-          new Date(
-            req.body.startTime
-          );
+        const notes =
+          String(
+            req.body.notes || ''
+          ).trim();
 
-        if (Number.isNaN(start.getTime())) {
+        if (notes.length > 2000) {
+          return errorResponse(
+            res,
+            400,
+            'Notes không được vượt quá 2000 ký tự'
+          );
+        }
+
+        appointment.notes =
+          notes;
+      }
+
+      const hasStartChange =
+        req.body.startTime !== undefined;
+
+      const hasEndChange =
+        req.body.endTime !== undefined;
+
+      if (
+        hasStartChange ||
+        hasEndChange
+      ) {
+        if (
+          !isAdmin &&
+          appointment.status !==
+            'pending'
+        ) {
+          return errorResponse(
+            res,
+            409,
+            'Chỉ có thể đổi thời gian khi lịch còn pending'
+          );
+        }
+
+        const nextStart =
+          hasStartChange
+            ? new Date(
+                req.body.startTime
+              )
+            : new Date(
+                appointment.startTime
+              );
+
+        const nextEnd =
+          hasEndChange
+            ? new Date(
+                req.body.endTime
+              )
+            : new Date(
+                appointment.endTime
+              );
+
+        if (
+          Number.isNaN(
+            nextStart.getTime()
+          )
+        ) {
           return errorResponse(
             res,
             400,
@@ -3128,29 +4257,93 @@ app.put(
           );
         }
 
-        appointment.startTime = start;
+        if (
+          Number.isNaN(
+            nextEnd.getTime()
+          ) ||
+          nextEnd <= nextStart
+        ) {
+          return errorResponse(
+            res,
+            400,
+            'endTime không hợp lệ hoặc phải sau startTime'
+          );
+        }
+
+        const durationMinutes =
+          (
+            nextEnd.getTime() -
+            nextStart.getTime()
+          ) /
+          (60 * 1000);
 
         if (
-          req.body.endTime !== undefined
+          durationMinutes <= 0 ||
+          durationMinutes > 480
         ) {
-          const end =
-            new Date(
-              req.body.endTime
-            );
-
-          if (
-            Number.isNaN(end.getTime()) ||
-            end <= start
-          ) {
-            return errorResponse(
-              res,
-              400,
-              'endTime không hợp lệ'
-            );
-          }
-
-          appointment.endTime = end;
+          return errorResponse(
+            res,
+            400,
+            'Thời lượng buổi học phải từ 1 đến 480 phút'
+          );
         }
+
+        if (
+          nextStart <= new Date()
+        ) {
+          return errorResponse(
+            res,
+            400,
+            'Không thể đặt lịch trong quá khứ'
+          );
+        }
+
+        const conflict =
+          await Appointment.findOne({
+            _id: {
+              $ne:
+                appointment._id,
+            },
+            tutorId:
+              appointment.tutorId,
+            status: {
+              $in: [
+                'pending',
+                'confirmed',
+              ],
+            },
+            startTime: {
+              $lt: nextEnd,
+            },
+            endTime: {
+              $gt: nextStart,
+            },
+          }).select('_id');
+
+        if (conflict) {
+          return errorResponse(
+            res,
+            409,
+            'Khung giờ mới đã bị trùng với lịch học khác'
+          );
+        }
+
+        appointment.startTime =
+          nextStart;
+
+        appointment.endTime =
+          nextEnd;
+
+        appointment.totalAmount =
+          Math.round(
+            (
+              Number(
+                appointment.hourlyRate ||
+                  0
+              ) *
+              durationMinutes
+            ) / 60
+          );
       }
 
       await appointment.save();
@@ -3168,18 +4361,23 @@ app.put(
             'name email avatar subjects hourlyRate verified'
           );
 
-      res.json(populated);
+      res.json(
+        populated
+      );
     } catch (err) {
       errorResponse(
         res,
-        500,
-        'Lỗi cập nhật lịch học',
-        err
+        err.status || 500,
+        err.status
+          ? err.message
+          : 'Lỗi cập nhật lịch học',
+        err.status
+          ? null
+          : err
       );
     }
   }
 );
-
 // ============================================================
 // TUTOR REQUESTS
 // ============================================================
@@ -4458,7 +5656,11 @@ async function apiCall(endpoint, options = {}) {
 /* =========================================================
    AUTH API
 ========================================================= */
-
+async function getCurrentUser() {
+  return apiCall(
+    '/auth/me'
+  );
+}
 async function login(email, password) {
   const result = await apiCall('/auth/login', {
     method: 'POST',
@@ -4582,7 +5784,36 @@ async function getAppointment(id) {
     `/appointments/${encodeURIComponent(id)}`
   );
 }
-
+async function getTutorAvailability(
+  tutorId,
+  date
+) {
+  return apiCall(
+    `/tutors/${encodeURIComponent(
+      tutorId
+    )}/availability?date=${encodeURIComponent(
+      date
+    )}`
+  );
+}
+async function getMyAvailability() {
+  return apiCall(
+    '/users/me/availability'
+  );
+}
+async function updateMyAvailability(
+  availability
+) {
+  return apiCall(
+    '/users/me/availability',
+    {
+      method: 'PUT',
+      body: JSON.stringify({
+        availability,
+      }),
+    }
+  );
+}
 async function createAppointment(
   tutorId,
   subject,
@@ -9252,19 +10483,48 @@ async function bootstrap() {
    * Đã có JWT:
    * khôi phục tài khoản.
    */
-  state.role =
-    state.currentUser.role ||
-    'student';
+  /*
+ * Đã có JWT:
+ * xác thực lại session với backend.
+ * Nếu token hết hạn / user bị xóa,
+ * apiCall() sẽ xử lý 401.
+ */
+try {
+  const freshUser =
+    await getCurrentUser();
+
+  saveCurrentUser(
+    freshUser
+  );
+} catch (error) {
+  clearToken();
+
+  state.currentUser =
+    null;
 
   showAuthScreen(
-    false
+    true
   );
 
-  applyIdentity();
-
   renderNav();
+  renderAllViews();
 
-  await fetchViewData();
+  return;
+}
+
+state.role =
+  state.currentUser.role ||
+  'student';
+
+showAuthScreen(
+  false
+);
+
+applyIdentity();
+
+renderNav();
+
+await fetchViewData();
 
   renderAllViews();
 
@@ -9301,10 +10561,14 @@ if (
     getAppointment,
     createAppointment,
     updateAppointment,
+    getCurrentUser,
 
     getTutorRequests,
     createTutorRequest,
     updateTutorRequest,
+    getTutorAvailability,
+    getMyAvailability,
+    updateMyAvailability,
 
     getMessages,
     sendMessage,
